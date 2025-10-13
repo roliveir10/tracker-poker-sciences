@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Betclic Spin & Go Tracker (MVP)
 
-## Getting Started
+Suivi des tournois Spin & Go Betclic: import `.txt`, parsing asynchrone, stats et dashboards.
 
-First, run the development server:
+## Prérequis
+- Node.js ≥ 18
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Démarrage rapide (local, SQLite)
+1. Installer les dépendances: `npm install`
+2. Générer Prisma (SQLite dev) et migrer:
+   - `npm run db:generate:dev`
+   - `npm run db:migrate:dev`
+3. Importer le fixture d’exemple en base: `npm run dev:parse`
+4. Démarrer l’app: `npm run dev` puis ouvrir `http://localhost:3000/dashboard`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Note: Auth par e‑mail possible via `EMAIL_SERVER` + `EMAIL_FROM` + `NEXTAUTH_SECRET`. Sinon, utilisez `dev:parse` pour peupler la base.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variables d’environnement
+Voir `.env.example` et renseigner si besoin:
+- NextAuth: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `EMAIL_SERVER`, `EMAIL_FROM`
+- S3/R2: `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
+- QStash (optionnel): `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`
+- Redis (optionnel): `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
+- Sentry (optionnel): `SENTRY_DSN`
+- Prod DB: `DATABASE_URL` (Neon Postgres)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Flux
+1) `/api/upload-url` -> upload direct S3/R2 -> `/api/imports`
+2) `/api/imports/:id/parse` (QStash ou fallback dev) -> persistance (Prisma)
+3) KPIs `/api/stats` -> Dashboard (ROI, ITM, profit, histogramme multiplicateurs)
 
-## Learn More
+## Scripts
+- Tests parser: `npm test`
+- Parser fixture -> DB: `npm run dev:parse`
+- Dev server: `npm run dev`
 
-To learn more about Next.js, take a look at the following resources:
+## Prod (Neon Postgres)
+1. Créer Neon, récupérer `DATABASE_URL`
+2. `npx prisma generate` puis `npx prisma migrate deploy`
+3. Déployer (ex: Vercel) et configurer secrets (.env)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Dossiers clés
+- `src/app/api/*` — endpoints (upload, imports, stats, parse)
+- `src/packages/parsers/betclic` — parser Betclic
+- `src/server/parseImport.ts` — pipeline parsing/persistance
+- `prisma/schema.dev.prisma` — schéma SQLite dev
+- `prisma/schema.prisma` — schéma Postgres prod
