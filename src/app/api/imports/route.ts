@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   const session = await auth();
-  let userId = session?.user?.id;
+  let userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId && process.env.NODE_ENV !== 'production') {
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });
     userId = user.id;
