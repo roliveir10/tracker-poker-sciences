@@ -289,7 +289,7 @@ export function parseBetclicText(raw: string): ParsedResult {
                 }
                 const amount = parseInt(win[3], 10);
                 if ((win[2] || '').toLowerCase().includes('main')) {
-                    (last as any).mainPotCents = amount;
+                    (last as Partial<{ mainPotCents: number | null }>).mainPotCents = amount;
                 }
             }
         }

@@ -7,7 +7,9 @@ export type EquityResult = {
   tiePct: number;
 };
 
-function buildSolverHand(cards: Card[]): any {
+type SolverSolvedHand = unknown; // Minimal: we only pass objects back into winners()
+
+function buildSolverHand(cards: Card[]): SolverSolvedHand {
   return SolverHand.solve(cards.map((c) => c.toUpperCase()));
 }
 
@@ -29,7 +31,7 @@ export function estimateMultiwayEquity(
   const need = 5 - board.length;
   const players = [[...heroHole], ...villains];
 
-  function evaluate(boardCards: string[]): { heroBest: any; villainHands: any[] } {
+  function evaluate(boardCards: string[]): { heroBest: SolverSolvedHand; villainHands: SolverSolvedHand[] } {
     const heroBest = buildSolverHand([...(heroHole.map((c) => c.toUpperCase())), ...boardCards]);
     const villainHands = villains.map((vh) => buildSolverHand([...(vh.map((c) => c.toUpperCase())), ...boardCards]));
     return { heroBest, villainHands };

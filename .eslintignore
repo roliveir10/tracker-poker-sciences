@@ -14,6 +14,8 @@ node_modules/
 
 # Ignore declaration files and build artifacts
 **/*.d.ts
+src/types/**/*.d.ts
+src/generated/**
 dist/
 build/
 .vercel/

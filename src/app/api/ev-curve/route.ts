@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getEvCurve, computeHandEv } from '@/server/ev';
+import type { HandEv } from '@/server/ev';
 import { prisma } from '@/lib/prisma';
 
 type DebugHandDetail = {
   handId: string;
-  playedAt: Date;
+  playedAt: Date | null;
   heroSeat: number | null;
   totalPotCents: number | null;
   mainPotCents: number | null;
   actionsCount: number;
   players: Array<{ seat: number | null; isHero: boolean; hole: string | null }>;
   contrib: number;
-  ev: number;
+  ev: HandEv;
 };
 
 export async function GET(req: NextRequest) {

@@ -64,7 +64,7 @@ export async function parseImport({
                         winnerSeat: h.winnerSeat ?? null,
                         playedAt: h.playedAt ?? null,
                         totalPotCents: h.totalPotCents ?? null,
-                        mainPotCents: (h as any).mainPotCents ?? null,
+                        mainPotCents: (h as Partial<{ mainPotCents: number | null }>).mainPotCents ?? null,
                     },
                 });
 

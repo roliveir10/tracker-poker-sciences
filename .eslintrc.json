@@ -31,7 +31,7 @@
   },
   "overrides": [
     {
-      "files": ["**/*.d.ts"],
+      "files": ["**/*.d.ts", "src/types/**/*.d.ts"],
       "rules": {
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/ban-types": "off",

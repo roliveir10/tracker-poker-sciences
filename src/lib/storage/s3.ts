@@ -42,7 +42,7 @@ export async function getObjectAsString(key: string): Promise<string> {
   if (!body) return '';
   // Body is a Readable stream in Node.js. Collect into string.
   const chunks: Buffer[] = [];
-  const stream = body as any as NodeJS.ReadableStream;
+  const stream: NodeJS.ReadableStream = body as unknown as NodeJS.ReadableStream;
   return await new Promise<string>((resolve, reject) => {
     stream.on('data', (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
     stream.on('error', reject);

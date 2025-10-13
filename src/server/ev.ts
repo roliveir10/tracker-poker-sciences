@@ -20,12 +20,12 @@ export async function computeHandEv(handId: string): Promise<HandEv> {
 
   // Realized change (rough): winner gets totalPot - own contribution. If unknown, skip.
   let realized: number | null = null;
-  if (typeof hand.totalPotCents === 'number' || typeof (hand as any).mainPotCents === 'number') {
+  if (typeof hand.totalPotCents === 'number' || typeof (hand as Partial<{ mainPotCents: number | null }>).mainPotCents === 'number') {
     // Approx: if winnerSeat matches hero seat, realized ≈ +totalPot - heroContribution; else -heroContribution
     // Contribution approximée: somme des bets/calls/raises/push (capé par totalPot/numPlayers) — pour MVP, on somme ses mises.
     const heroActions = hand.actions.filter((a) => a.seat === heroSeat && a.sizeCents != null);
     const contrib = heroActions.reduce((s, a) => s + (a.sizeCents ?? 0), 0);
-    const pot = (hand.totalPotCents ?? 0) || ((hand as any).mainPotCents ?? 0);
+    const pot = (hand.totalPotCents ?? 0) || ((hand as Partial<{ mainPotCents: number | null }>).mainPotCents ?? 0);
     if (pot > 0) realized = hand.winnerSeat === heroSeat ? pot - contrib : -contrib;
   }
 
@@ -33,7 +33,7 @@ export async function computeHandEv(handId: string): Promise<HandEv> {
   const allInIdx = hand.actions.findIndex((a) => a.isAllIn && a.seat === heroSeat);
   let adjusted: number | null = null;
   if (allInIdx >= 0) {
-    const upTo = hand.actions.slice(0, allInIdx + 1);
+    const _upTo = hand.actions.slice(0, allInIdx + 1);
     const boardStr = (hand.board || '').replace(/[\[\]]/g, ' ').trim();
     const boardCards = boardStr.split(/\s+|\|/).map(s => s.trim()).filter(Boolean);
     const heroHole = ((heroPlayer?.hole || hand.dealtCards || '')
@@ -48,7 +48,7 @@ export async function computeHandEv(handId: string): Promise<HandEv> {
       const eq = estimateMultiwayEquity(heroHole as [string, string], villainHoles, boardCards);
       const heroActions = hand.actions.filter((a) => a.seat === heroSeat && a.sizeCents != null);
       const contrib = heroActions.reduce((s, a) => s + (a.sizeCents ?? 0), 0);
-      const pot = (hand.totalPotCents ?? 0) || ((hand as any).mainPotCents ?? 0) || contrib;
+      const pot = (hand.totalPotCents ?? 0) || ((hand as Partial<{ mainPotCents: number | null }>).mainPotCents ?? 0) || contrib;
       const heroShare = eq.winPct + eq.tiePct / (villainHoles.length + 1);
       adjusted = Math.round(heroShare * pot - contrib);
     }
