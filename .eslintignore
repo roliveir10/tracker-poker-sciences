@@ -1,0 +1,12 @@
+# Ignore build output
+.next/
+
+# Ignore Prisma generated and migration outputs
+prisma/
+
+# Ignore TypeScript build cache if present
+*.tsbuildinfo
+
+# Ignore node modules (should already be ignored)
+node_modules/
+

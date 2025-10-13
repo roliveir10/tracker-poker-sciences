@@ -3,6 +3,18 @@ import { auth } from '@/auth';
 import { getEvCurve, computeHandEv } from '@/server/ev';
 import { prisma } from '@/lib/prisma';
 
+type DebugHandDetail = {
+  handId: string;
+  playedAt: Date;
+  heroSeat: number | null;
+  totalPotCents: number | null;
+  mainPotCents: number | null;
+  actionsCount: number;
+  players: Array<{ seat: number | null; isHero: boolean; hole: string | null }>;
+  contrib: number;
+  ev: number;
+};
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   // NextAuth's session.user may not be typed with 'id' by default; cast safely
@@ -25,19 +37,20 @@ export async function GET(req: NextRequest) {
       take: 5,
       include: { actions: true, players: true },
     });
-    const details = [] as any[];
+    const details: DebugHandDetail[] = [];
     for (const h of hands) {
       const ev = await computeHandEv(h.id);
       const heroSeat = h.heroSeat ?? h.players.find(p => p.isHero)?.seat ?? null;
       const contrib = h.actions.filter(a => a.seat === heroSeat && a.sizeCents != null).reduce((s, a) => s + (a.sizeCents || 0), 0);
+      const mainPotCents = (h as Partial<{ mainPotCents: number | null }>).mainPotCents ?? null;
       details.push({
         handId: h.id,
         playedAt: h.playedAt,
         heroSeat,
-        totalPotCents: h.totalPotCents,
-        mainPotCents: (h as any).mainPotCents ?? null,
+        totalPotCents: (h as Partial<{ totalPotCents: number | null }>).totalPotCents ?? null,
+        mainPotCents,
         actionsCount: h.actions.length,
-        players: h.players.map(p => ({ seat: p.seat, isHero: p.isHero, hole: p.hole })),
+        players: h.players.map(p => ({ seat: p.seat ?? null, isHero: Boolean(p.isHero), hole: (p as Partial<{ hole: string | null }>).hole ?? null })),
         contrib,
         ev,
       });
