@@ -10,7 +10,7 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // IMPORTANT: In flat config, only the FIRST object can define global ignores
   {
     ignores: [
       "node_modules/**",
@@ -29,6 +29,7 @@ const eslintConfig = [
       "src/generated/prisma/**",
     ],
   },
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
   // Global rule tweaks
   {
     rules: {
