@@ -42,16 +42,19 @@ export async function GET(req: NextRequest) {
     for (const h of hands) {
       const ev = await computeHandEv(h.id);
       const heroSeat = h.heroSeat ?? h.players.find(p => p.isHero)?.seat ?? null;
-      const contrib = h.actions.filter(a => a.seat === heroSeat && a.sizeCents != null).reduce((s, a) => s + (a.sizeCents || 0), 0);
-      const mainPotCents = (h as Partial<{ mainPotCents: number | null }>).mainPotCents ?? null;
+      const contrib = h.actions
+        .filter(a => a.seat === heroSeat && a.sizeCents != null)
+        .reduce((sum, a) => sum + (a.sizeCents ?? 0), 0);
+      const mainPotCents: number | null = h.mainPotCents ?? null;
+      const totalPotCents: number | null = h.totalPotCents ?? null;
       details.push({
         handId: h.id,
         playedAt: h.playedAt,
         heroSeat,
-        totalPotCents: (h as Partial<{ totalPotCents: number | null }>).totalPotCents ?? null,
+        totalPotCents,
         mainPotCents,
         actionsCount: h.actions.length,
-        players: h.players.map(p => ({ seat: p.seat ?? null, isHero: Boolean(p.isHero), hole: (p as Partial<{ hole: string | null }>).hole ?? null })),
+        players: h.players.map(p => ({ seat: p.seat ?? null, isHero: Boolean(p.isHero), hole: p.hole ?? null })),
         contrib,
         ev,
       });
