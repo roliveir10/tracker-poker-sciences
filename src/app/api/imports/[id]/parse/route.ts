@@ -5,8 +5,8 @@ import { parseImport } from '@/server/parseImport';
 
 export const runtime = 'nodejs';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const importId = params.id;
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id: importId } = await context.params;
   const rawBody = await req.text();
 
   // Verify QStash signature if keys are configured
