@@ -14,7 +14,8 @@ const BodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const imp = await prisma.import.create({
     data: {
-      userId: session.user.id,
+      userId,
       status: 'queued',
       fileKey,
     },
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   const enqueue = await publishParseJob({
     baseUrl,
     importId: imp.id,
-    body: { fileKey, userId: session.user.id, originalName, size },
+    body: { fileKey, userId, originalName, size },
   });
 
   if (!enqueue.queued) {
