@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!enqueue.queued) {
-    await parseImport({ importId: imp.id, fileKey, userId: session.user.id });
+    await parseImport({ importId: imp.id, fileKey, userId });
   }
 
   return NextResponse.json({ id: imp.id, status: enqueue.queued ? 'queued' : 'done' });
