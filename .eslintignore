@@ -1,3 +1,13 @@
+node_modules/**
+.next/**
+.vercel/**
+prisma/**
+src/generated/**
+src/generated/prisma/**
+**/.prisma/**
+**/dist/**
+**/build/**
+
 # Ignore build output
 .next/
 

@@ -19,10 +19,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (!isValid) return NextResponse.json({ error: 'invalid_signature' }, { status: 401 });
   }
 
-  const body = rawBody ? JSON.parse(rawBody) : {};
-  if (!body || body.importId !== importId || !body.fileKey || !body.userId) {
+  type ParsePayload = { importId: string; fileKey: string; userId: string };
+  const bodyUnknown: unknown = rawBody ? JSON.parse(rawBody) : null;
+  const isParsePayload = (v: unknown): v is ParsePayload =>
+    !!v && typeof v === 'object' &&
+    typeof (v as { importId?: unknown }).importId === 'string' &&
+    typeof (v as { fileKey?: unknown }).fileKey === 'string' &&
+    typeof (v as { userId?: unknown }).userId === 'string';
+
+  if (!isParsePayload(bodyUnknown) || bodyUnknown.importId !== importId) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
+  const body: ParsePayload = bodyUnknown;
 
   const imp = await prisma.import.findUnique({ where: { id: importId } });
   if (!imp) return NextResponse.json({ error: 'not_found' }, { status: 404 });
