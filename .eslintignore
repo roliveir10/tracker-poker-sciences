@@ -3,10 +3,18 @@
 
 # Ignore Prisma generated and migration outputs
 prisma/
+.prisma/
+**/.prisma/**
 
 # Ignore TypeScript build cache if present
 *.tsbuildinfo
 
 # Ignore node modules (should already be ignored)
 node_modules/
+
+# Ignore declaration files and build artifacts
+**/*.d.ts
+dist/
+build/
+.vercel/
 
