@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  let userId = session?.user?.id;
+  // NextAuth's session.user may not be typed with 'id' by default; cast safely
+  let userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId && process.env.NODE_ENV !== 'production') {
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });
     userId = user.id;
