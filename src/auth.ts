@@ -1,8 +1,16 @@
-import type { NextAuthOptions } from 'next-auth';
+import type { DefaultSession, NextAuthOptions } from 'next-auth';
 import { getServerSession } from 'next-auth';
 import EmailProvider from 'next-auth/providers/email';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id?: string | null;
+    } & DefaultSession['user'];
+  }
+}
 
 const emailConfigured = Boolean(process.env.EMAIL_SERVER);
 

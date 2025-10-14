@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  let userId = session?.user?.id;
+  let userId = session?.user?.id ?? null;
   const allowDevFallback = process.env.DEV_FALLBACK === '1' || process.env.NODE_ENV !== 'production';
   if (!userId && allowDevFallback) {
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });
