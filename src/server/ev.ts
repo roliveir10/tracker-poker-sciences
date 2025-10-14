@@ -33,7 +33,6 @@ export async function computeHandEv(handId: string): Promise<HandEv> {
   const allInIdx = hand.actions.findIndex((a) => a.isAllIn && a.seat === heroSeat);
   let adjusted: number | null = null;
   if (allInIdx >= 0) {
-    const upTo = hand.actions.slice(0, allInIdx + 1);
     const boardStr = (hand.board || '').replace(/[\[\]]/g, ' ').trim();
     const boardCards = boardStr.split(/\s+|\|/).map(s => s.trim()).filter(Boolean);
     const heroHole = ((heroPlayer?.hole || hand.dealtCards || '')
