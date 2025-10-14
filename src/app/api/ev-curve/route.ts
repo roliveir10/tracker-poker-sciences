@@ -30,21 +30,21 @@ export async function GET(req: NextRequest) {
   if (searchParams.get('debug') === '1') {
     const hands = await prisma.hand.findMany({
       where: { tournament: { userId } },
-      orderBy: { playedAt: 'asc' },
-      take: 5,
+      orderBy: { createdAt: 'asc' },
+      take: isFinite(limit) ? limit : undefined,
       include: { actions: true, players: true },
     });
     type DebugHand = Hand & { actions: Action[]; players: HandPlayer[]; mainPotCents: number | null };
-    const details: Array<{ handNo: string | null; heroHole: string | null; deltaAdj: number; deltaActual: number }> = [];
+    const details: Array<{ handId: string; heroHole: string | null; deltaAdj: number; deltaActual: number }> = [];
     for (const h of hands as DebugHand[]) {
       const ev = await computeHandEv(h.id, { seed: seedParam ? parseInt(seedParam, 10) : undefined, samples: sampParam ? parseInt(sampParam, 10) : undefined });
       const heroSeat = h.heroSeat ?? h.players.find(p => p.isHero)?.seat ?? null;
       const heroHoleStr = (heroSeat != null ? (h.players.find(p => p.seat === heroSeat)?.hole || h.dealtCards || null) : null);
       const deltaActual = ev.realizedChangeCents ?? 0;
       const deltaAdj = ev.allInAdjustedChangeCents != null ? ev.allInAdjustedChangeCents : deltaActual;
-      details.push({ handNo: h.handNo ?? null, heroHole: heroHoleStr, deltaAdj, deltaActual });
+      details.push({ handId: h.handNo ?? h.id, heroHole: heroHoleStr, deltaAdj, deltaActual });
     }
-    return NextResponse.json({ ...data, debug: details });
+    return NextResponse.json(details);
   }
 
   return NextResponse.json(data);
