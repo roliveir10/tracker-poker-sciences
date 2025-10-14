@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-type Point = { handId: string; playedAt: string | null; cumActual: number; cumAdj: number };
+type Point = { handId: string; handNo: string | null; playedAt: string | null; cumActual: number; cumAdj: number };
 
 export default function EvDashboardPage() {
   const [points, setPoints] = useState<Point[]>([]);
@@ -13,7 +13,7 @@ export default function EvDashboardPage() {
   useEffect(() => {
     fetch('/api/ev-curve?limit=300')
       .then(async (r) => { if (!r.ok) throw new Error('failed'); return r.json(); })
-      .then((data) => { setPoints(data.points || []); setChipEv(data.chipEvAdjTotal || 0); })
+      .then((data) => { setPoints(normalize(data.points || [])); setChipEv(data.chipEvAdjTotal || 0); })
       .catch(() => setError('Impossible de charger la courbe EV.'));
   }, []);
 
@@ -27,11 +27,14 @@ export default function EvDashboardPage() {
       </div>
       <div style={{ width: '100%', height: 360 }}>
         <ResponsiveContainer>
-          <LineChart data={points}>
+          <LineChart data={points.map((p, i) => ({...p, index: i + 1 }))}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="handId" hide />
+            <XAxis dataKey="index" />
             <YAxis />
-            <Tooltip formatter={(v: number) => formatChips(v)} />
+            <Tooltip formatter={(v: number) => formatChips(v)} labelFormatter={(label, payload) => {
+              const p = (payload && payload[0] && (payload[0].payload as any)) || null;
+              return p?.handNo || p?.handId || String(label);
+            }} />
             <Line type="monotone" dataKey="cumActual" stroke="#94a3b8" dot={false} name="Cumul réalisé" />
             <Line type="monotone" dataKey="cumAdj" stroke="#2563eb" dot={false} name="Cumul all-in adj" />
           </LineChart>
@@ -52,6 +55,13 @@ function Kpi({ label, value }: { label: string; value: number | string }) {
 
 function formatChips(cents: number) {
   return new Intl.NumberFormat('fr-FR').format(cents);
+}
+
+function normalize(points: Point[]): Point[] {
+  if (!points.length) return points;
+  const baseA = points[0].cumActual || 0;
+  const baseE = points[0].cumAdj || 0;
+  return points.map(p => ({ ...p, cumActual: p.cumActual - baseA, cumAdj: p.cumAdj - baseE }));
 }
 
 

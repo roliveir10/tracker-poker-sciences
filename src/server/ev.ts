@@ -146,16 +146,16 @@ export async function getEvCurve(userId: string, limit = 200, options: EvOptions
     where: { tournament: { userId } },
     orderBy: { playedAt: 'asc' },
     take: limit,
-    select: { id: true, playedAt: true },
+    select: { id: true, handNo: true, playedAt: true },
   });
   let cumActual = 0;
   let cumAdj = 0;
-  const points: Array<{ handId: string; playedAt: Date | null; cumActual: number; cumAdj: number }> = [];
+  const points: Array<{ handId: string; handNo: string | null; playedAt: Date | null; cumActual: number; cumAdj: number }> = [];
   for (const h of hands) {
     const ev = await computeHandEv(h.id, options);
     if (ev.realizedChangeCents != null) cumActual += ev.realizedChangeCents;
     if (ev.allInAdjustedChangeCents != null) cumAdj += ev.allInAdjustedChangeCents;
-    points.push({ handId: h.id, playedAt: ev.playedAt, cumActual, cumAdj });
+    points.push({ handId: h.id, handNo: h.handNo ?? null, playedAt: ev.playedAt, cumActual, cumAdj });
   }
   return { points, chipEvAdjTotal: cumAdj };
 }
