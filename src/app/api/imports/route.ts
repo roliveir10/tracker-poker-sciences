@@ -14,8 +14,7 @@ const BodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   const imp = await prisma.import.create({
     data: {
-      userId,
+      userId: session.user.id,
       status: 'queued',
       fileKey,
     },
@@ -42,11 +41,11 @@ export async function POST(req: NextRequest) {
   const enqueue = await publishParseJob({
     baseUrl,
     importId: imp.id,
-    body: { fileKey, userId, originalName, size },
+    body: { fileKey, userId: session.user.id, originalName, size },
   });
 
   if (!enqueue.queued) {
-    await parseImport({ importId: imp.id, fileKey, userId });
+    await parseImport({ importId: imp.id, fileKey, userId: session.user.id });
   }
 
   return NextResponse.json({ id: imp.id, status: enqueue.queued ? 'queued' : 'done' });
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   const session = await auth();
-  let userId = (session?.user as { id?: string } | undefined)?.id;
+  let userId = session?.user?.id;
   if (!userId && process.env.NODE_ENV !== 'production') {
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });
     userId = user.id;

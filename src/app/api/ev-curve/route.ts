@@ -1,25 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getEvCurve, computeHandEv } from '@/server/ev';
-import type { HandEv } from '@/server/ev';
 import { prisma } from '@/lib/prisma';
-
-type DebugHandDetail = {
-  handId: string;
-  playedAt: Date | null;
-  heroSeat: number | null;
-  totalPotCents: number | null;
-  mainPotCents: number | null;
-  actionsCount: number;
-  players: Array<{ seat: number | null; isHero: boolean; hole: string | null }>;
-  contrib: number;
-  ev: HandEv;
-};
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  // NextAuth's session.user may not be typed with 'id' by default; cast safely
-  let userId = (session?.user as { id?: string } | undefined)?.id;
+  let userId = session?.user?.id;
   if (!userId && process.env.NODE_ENV !== 'production') {
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });
     userId = user.id;
@@ -38,23 +24,19 @@ export async function GET(req: NextRequest) {
       take: 5,
       include: { actions: true, players: true },
     });
-    const details: DebugHandDetail[] = [];
+    const details = [] as any[];
     for (const h of hands) {
       const ev = await computeHandEv(h.id);
       const heroSeat = h.heroSeat ?? h.players.find(p => p.isHero)?.seat ?? null;
-      const contrib = h.actions
-        .filter(a => a.seat === heroSeat && a.sizeCents != null)
-        .reduce((sum, a) => sum + (a.sizeCents ?? 0), 0);
-      const mainPotCents: number | null = h.mainPotCents ?? null;
-      const totalPotCents: number | null = h.totalPotCents ?? null;
+      const contrib = h.actions.filter(a => a.seat === heroSeat && a.sizeCents != null).reduce((s, a) => s + (a.sizeCents || 0), 0);
       details.push({
         handId: h.id,
         playedAt: h.playedAt,
         heroSeat,
-        totalPotCents,
-        mainPotCents,
+        totalPotCents: h.totalPotCents,
+        mainPotCents: (h as any).mainPotCents ?? null,
         actionsCount: h.actions.length,
-        players: h.players.map(p => ({ seat: p.seat ?? null, isHero: Boolean(p.isHero), hole: p.hole ?? null })),
+        players: h.players.map(p => ({ seat: p.seat, isHero: p.isHero, hole: p.hole })),
         contrib,
         ev,
       });

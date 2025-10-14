@@ -11,8 +11,7 @@ const BodySchema = z.object({
 
 export async function POST(req: NextRequest) {
 	const session = await auth();
-	const userId = (session?.user as { id?: string } | undefined)?.id;
-	if (!userId) {
+	if (!session?.user?.id) {
 		return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 	}
 
@@ -26,7 +25,7 @@ export async function POST(req: NextRequest) {
 	}
 
 	const { filename, contentType } = parse.data;
-	const key = `users/${userId}/imports/${Date.now()}-${encodeURIComponent(filename)}`;
+	const key = `users/${session.user.id}/imports/${Date.now()}-${encodeURIComponent(filename)}`;
 	const url = await createPresignedUploadUrl({ key, contentType });
 
 	return NextResponse.json({ url, key });

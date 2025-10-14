@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(_req: NextRequest) {
   const session = await auth();
-  let userId = (session?.user as { id?: string } | undefined)?.id;
+  let userId = session?.user?.id;
   if (!userId && process.env.NODE_ENV !== 'production') {
     // Dev fallback: use or create dev@example.com
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });

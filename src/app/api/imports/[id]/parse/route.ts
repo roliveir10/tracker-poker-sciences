@@ -5,8 +5,8 @@ import { parseImport } from '@/server/parseImport';
 
 export const runtime = 'nodejs';
 
-export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id: importId } = await context.params;
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const importId = params.id;
   const rawBody = await req.text();
 
   // Verify QStash signature if keys are configured
@@ -19,18 +19,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (!isValid) return NextResponse.json({ error: 'invalid_signature' }, { status: 401 });
   }
 
-  type ParsePayload = { importId: string; fileKey: string; userId: string };
-  const bodyUnknown: unknown = rawBody ? JSON.parse(rawBody) : null;
-  const isParsePayload = (v: unknown): v is ParsePayload =>
-    !!v && typeof v === 'object' &&
-    typeof (v as { importId?: unknown }).importId === 'string' &&
-    typeof (v as { fileKey?: unknown }).fileKey === 'string' &&
-    typeof (v as { userId?: unknown }).userId === 'string';
-
-  if (!isParsePayload(bodyUnknown) || bodyUnknown.importId !== importId) {
+  const body = rawBody ? JSON.parse(rawBody) : {};
+  if (!body || body.importId !== importId || !body.fileKey || !body.userId) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
-  const body: ParsePayload = bodyUnknown;
 
   const imp = await prisma.import.findUnique({ where: { id: importId } });
   if (!imp) return NextResponse.json({ error: 'not_found' }, { status: 404 });
@@ -38,9 +30,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const result = await parseImport({ importId, fileKey: body.fileKey, userId: body.userId });
     return NextResponse.json({ ok: true, numHands: result.numHands });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    await prisma.import.update({ where: { id: importId }, data: { status: 'failed', error: message } });
+  } catch (err: any) {
+    await prisma.import.update({ where: { id: importId }, data: { status: 'failed', error: String(err?.message ?? err) } });
     return NextResponse.json({ error: 'parse_failed' }, { status: 500 });
   }
 }
