@@ -1,4 +1,4 @@
-.PHONY: up setup install db-dev parse dev preview clean prisma reload reparse reset
+.PHONY: up setup install db parse dev preview clean prisma reload reparse reset
 
 # Usage:
 #   make up                # install + migrate (SQLite) + parse fixture + dev
@@ -11,14 +11,14 @@
 
 up: setup dev
 
-setup: install db-dev parse
+setup: install db parse
 
 install:
 	npm install
 
-db-dev:
-	npm run db:generate:dev
-	npm run db:migrate:dev
+db:
+	npm run db:generate
+	npm run db:migrate:deploy
 
 parse:
 	FILE="$(FILE)" npm run dev:parse

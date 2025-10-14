@@ -43,5 +43,4 @@ Voir `.env.example` et renseigner si besoin:
 - `src/app/api/*` — endpoints (upload, imports, stats, parse)
 - `src/packages/parsers/betclic` — parser Betclic
 - `src/server/parseImport.ts` — pipeline parsing/persistance
-- `prisma/schema.dev.prisma` — schéma SQLite dev
-- `prisma/schema.prisma` — schéma Postgres prod
+- `prisma/schema.prisma` — schéma Postgres (Neon)
