@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { getEvCurve, computeHandEv } from '@/server/ev';
 import type { Hand, Action, HandPlayer } from '@/generated/prisma';
 import { prisma } from '@/lib/prisma';
+import { estimateMultiwayEquity } from '@/lib/poker/equity';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -34,32 +35,14 @@ export async function GET(req: NextRequest) {
       include: { actions: true, players: true },
     });
     type DebugHand = Hand & { actions: Action[]; players: HandPlayer[]; mainPotCents: number | null };
-    const details: Array<{
-      handId: string;
-      playedAt: Date | null;
-      heroSeat: number | null;
-      totalPotCents: number | null;
-      mainPotCents: number | null;
-      actionsCount: number;
-      players: Array<{ seat: number; isHero: boolean; hole: string | null }>;
-      contrib: number;
-      ev: Awaited<ReturnType<typeof computeHandEv>>;
-    }> = [];
+    const details: Array<{ handNo: string | null; heroHole: string | null; deltaAdj: number; deltaActual: number }> = [];
     for (const h of hands as DebugHand[]) {
-      const ev = await computeHandEv(h.id);
+      const ev = await computeHandEv(h.id, { seed: seedParam ? parseInt(seedParam, 10) : undefined, samples: sampParam ? parseInt(sampParam, 10) : undefined });
       const heroSeat = h.heroSeat ?? h.players.find(p => p.isHero)?.seat ?? null;
-      const contrib = h.actions.filter(a => a.seat === heroSeat && a.sizeCents != null).reduce((s, a) => s + (a.sizeCents ?? 0), 0);
-      details.push({
-        handId: h.id,
-        playedAt: h.playedAt,
-        heroSeat,
-        totalPotCents: h.totalPotCents,
-        mainPotCents: h.mainPotCents ?? null,
-        actionsCount: h.actions.length,
-        players: h.players.map(p => ({ seat: p.seat, isHero: p.isHero, hole: p.hole })),
-        contrib,
-        ev,
-      });
+      const heroHoleStr = (heroSeat != null ? (h.players.find(p => p.seat === heroSeat)?.hole || h.dealtCards || null) : null);
+      const deltaActual = ev.realizedChangeCents ?? 0;
+      const deltaAdj = ev.allInAdjustedChangeCents != null ? ev.allInAdjustedChangeCents : deltaActual;
+      details.push({ handNo: h.handNo ?? null, heroHole: heroHoleStr, deltaAdj, deltaActual });
     }
     return NextResponse.json({ ...data, debug: details });
   }

@@ -153,9 +153,11 @@ export async function getEvCurve(userId: string, limit = 200, options: EvOptions
   const points: Array<{ handId: string; handNo: string | null; playedAt: Date | null; cumActual: number; cumAdj: number }> = [];
   for (const h of hands) {
     const ev = await computeHandEv(h.id, options);
-    if (ev.realizedChangeCents != null) cumActual += ev.realizedChangeCents;
-    if (ev.allInAdjustedChangeCents != null) cumAdj += ev.allInAdjustedChangeCents;
-    points.push({ handId: h.id, handNo: h.handNo ?? null, playedAt: ev.playedAt, cumActual, cumAdj });
+    const deltaActual = ev.realizedChangeCents ?? 0;
+    const deltaAdj = ev.allInAdjustedChangeCents != null ? ev.allInAdjustedChangeCents : deltaActual;
+    cumActual += deltaActual;
+    cumAdj += deltaAdj;
+    points.push({ handId: h.handNo ?? h.id, handNo: h.handNo ?? null, playedAt: ev.playedAt, cumActual, cumAdj });
   }
   return { points, chipEvAdjTotal: cumAdj };
 }
