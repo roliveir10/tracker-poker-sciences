@@ -3,7 +3,8 @@ export const runtime = 'nodejs';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
