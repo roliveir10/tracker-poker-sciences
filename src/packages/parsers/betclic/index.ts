@@ -143,10 +143,13 @@ export function parseBetclicText(raw: string): ParsedResult {
 		else if (line.startsWith('*** SUMMARY ***')) { inSummary = true; continue; }
 		else if (line.trim() === '------------') { pushCurrent(); continue; }
 
-        if (inHole && line.startsWith('*** PRE-FLOP ***')) {
-            const hand: ParsedHand = { handId: null, sbCents: null, bbCents: null, heroSeat: null, dealtCards: null, board: null, boardFlop: null, boardTurn: null, boardRiver: null, winnerSeat: null, playedAt: current.startedAt, actions: [], players: [...currentPlayers], totalPotCents: pendingTotalPotCents };
-            current.hands.push(hand);
-        }
+		if (inHole && line.startsWith('*** PRE-FLOP ***')) {
+			// Create a hand only if none exists yet for this header
+			if (current.hands.length === 0) {
+				const hand: ParsedHand = { handId: null, sbCents: null, bbCents: null, heroSeat: null, dealtCards: null, board: null, boardFlop: null, boardTurn: null, boardRiver: null, winnerSeat: null, playedAt: current.startedAt, actions: [], players: [...currentPlayers], totalPotCents: pendingTotalPotCents };
+				current.hands.push(hand);
+			}
+		}
 		if (line.startsWith('Hand ID:')) {
 			const id = line.split(':').slice(1).join(':').trim();
 			if (current.hands.length === 0) current.hands.push({ handId: id, sbCents: null, bbCents: null, heroSeat: null, dealtCards: null, board: null, boardFlop: null, boardTurn: null, boardRiver: null, winnerSeat: null, playedAt: current.startedAt, actions: [], players: [], totalPotCents: null });

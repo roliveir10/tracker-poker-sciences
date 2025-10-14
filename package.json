@@ -11,6 +11,7 @@
     "db:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
     "dev:parse": "tsx src/scripts/dev-parse.ts",
+    "db:clean": "tsx src/scripts/clean-db.ts",
     "ci:ev": "npm run db:generate && npm run db:migrate:deploy && FILE=$FILE tsx src/scripts/dev-parse.ts && vitest run && tsx src/scripts/ev-debug.ts"
   },
   "dependencies": {

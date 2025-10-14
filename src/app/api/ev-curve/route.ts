@@ -17,7 +17,13 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get('limit') || '200', 10);
-  const data = await getEvCurve(userId, isFinite(limit) ? limit : 200);
+  const seedParam = searchParams.get('seed');
+  const sampParam = searchParams.get('samp');
+  const options = {
+    seed: seedParam ? parseInt(seedParam, 10) : undefined,
+    samples: sampParam ? parseInt(sampParam, 10) : undefined,
+  };
+  const data = await getEvCurve(userId, isFinite(limit) ? limit : 200, options);
 
   // Optional debug: return details for first 5 hands
   if (searchParams.get('debug') === '1') {
