@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(_req: NextRequest) {
   const session = await auth();
   let userId = session?.user?.id;
-  if (!userId && process.env.NODE_ENV !== 'production') {
+  const allowDevFallback = process.env.DEV_FALLBACK === '1' || process.env.NODE_ENV !== 'production';
+  if (!userId && allowDevFallback) {
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });
     userId = user.id;
   }
