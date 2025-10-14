@@ -58,18 +58,41 @@ export async function computeHandEv(handId: string, options: EvOptions = {}): Pr
     return contrib;
   };
 
-  // Realized change (rough): winner gets totalPot - own contribution. If unknown, skip.
+  // Realized change
   let realized: number | null = null;
-  if (typeof hand.totalPotCents === 'number' || typeof hand.mainPotCents === 'number') {
-    // Approx: if winnerSeat matches hero seat, realized ≈ +totalPot - heroContribution; else -heroContribution
-    // Contribution approximée: somme des bets/calls/raises/push (capé par totalPot/numPlayers) — pour MVP, on somme ses mises.
+  // If there is an all-in, compute realized from matched at all-in (HU) with dead money
+  const allInIdx = hand.actions.findIndex((a) => a.isAllIn && a.seat === heroSeat);
+  if (allInIdx >= 0 && heroSeat != null) {
+    // Recompute invested up to all-in index on that street
+    const invested: Record<number, number> = {};
+    let streetAI: 'preflop' | 'flop' | 'turn' | 'river' = hand.actions[allInIdx].street;
+    for (const a of hand.actions.slice(0, allInIdx + 1).sort((x, y) => x.orderNo - y.orderNo)) {
+      if (a.street !== streetAI) {
+        // keep only current all-in street
+        for (const key of Object.keys(invested)) delete invested[Number(key)];
+        streetAI = a.street;
+      }
+      if (a.seat == null) continue;
+      const prev = invested[a.seat] ?? 0;
+      if (a.type === 'check' || a.type === 'fold') continue;
+      if (a.type === 'call' || a.type === 'bet') invested[a.seat] = prev + Math.max(0, a.sizeCents ?? 0);
+      if (a.type === 'raise' || a.type === 'push') invested[a.seat] = Math.max(prev, Math.max(0, a.sizeCents ?? 0));
+    }
+    const oppSeat = Object.entries(invested).map(([s, v]) => [Number(s), v as number]).filter(([s]) => s !== heroSeat).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    if (oppSeat != null) {
+      const matched = Math.min(invested[heroSeat] ?? 0, invested[oppSeat] ?? 0);
+      // HU réalisé strict: +matched si Hero gagne, sinon -matched
+      realized = hand.winnerSeat === heroSeat ? matched : -matched;
+    }
+  }
+  // Fallback realized when no all-in detected
+  if (realized == null && (typeof hand.totalPotCents === 'number' || typeof hand.mainPotCents === 'number')) {
     const contrib = computeHeroContribution();
     const pot = (hand.totalPotCents ?? 0) || (hand.mainPotCents ?? 0);
     if (pot > 0) realized = hand.winnerSeat === heroSeat ? pot - contrib : -contrib;
   }
 
   // All-in adjusted: find first all-in involving hero, compute equity vs opponents alive at that point using revealed cards and board at that time
-  const allInIdx = hand.actions.findIndex((a) => a.isAllIn && a.seat === heroSeat);
   let adjusted: number | null = null;
   if (allInIdx >= 0) {
     const boardStr = (hand.board || '').replace(/[\[\]]/g, ' ').trim();
