@@ -5,7 +5,8 @@ import { parseImport } from '@/server/parseImport';
 
 export const runtime = 'nodejs';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;
   const importId = params.id;
   const rawBody = await req.text();
 
