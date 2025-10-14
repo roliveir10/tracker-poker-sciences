@@ -27,7 +27,7 @@ export type ParsedHand = {
 	actions?: ParsedAction[];
 	players?: ParsedPlayer[];
 	totalPotCents?: number | null;
-    mainPotCents?: number | null;
+	mainPotCents?: number | null;
 };
 
 export type ParsedAction = {
@@ -276,20 +276,20 @@ export function parseBetclicText(raw: string): ParsedResult {
 		}
 
         // Winner seat from summary: capture winner and main pot amount if present
-        if (inSummary && current.hands.length > 0) {
-            const win = line.match(/^([^\n]+)\s+wins\s+((?:main|side)\s+pot)?\s*.*\s+of\s+(\d+)/i);
+		if (inSummary && current.hands.length > 0) {
+			const win = line.match(/^([^\n]+)\s+wins\s+((?:main|side)\s+pot)?\s*.*\s+of\s+(\d+)/i);
             if (win) {
                 const winnerName = win[1].trim();
                 const seat = nameToSeat[winnerName];
                 const last = current.hands[current.hands.length - 1];
-                if (seat) last.winnerSeat = seat;
+				if (seat) last.winnerSeat = seat;
                 else if (winnerName === (current.heroName || '')) {
                     // Fallback: if winner is hero by name, use heroSeat
                     if (typeof last.heroSeat === 'number') last.winnerSeat = last.heroSeat;
                 }
                 const amount = parseInt(win[3], 10);
                 if ((win[2] || '').toLowerCase().includes('main')) {
-                    (last as any).mainPotCents = amount;
+					last.mainPotCents = amount;
                 }
             }
         }

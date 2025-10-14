@@ -7,7 +7,9 @@ export type EquityResult = {
   tiePct: number;
 };
 
-function buildSolverHand(cards: Card[]): any {
+type SolverHandResult = ReturnType<typeof SolverHand.solve>;
+
+function buildSolverHand(cards: Card[]): SolverHandResult {
   return SolverHand.solve(cards.map((c) => c.toUpperCase()));
 }
 
@@ -27,11 +29,14 @@ export function estimateMultiwayEquity(
   const remaining = deck.filter((c) => !used.has(c));
 
   const need = 5 - board.length;
-  const players = [[...heroHole], ...villains];
-
-  function evaluate(boardCards: string[]): { heroBest: any; villainHands: any[] } {
-    const heroBest = buildSolverHand([...(heroHole.map((c) => c.toUpperCase())), ...boardCards]);
-    const villainHands = villains.map((vh) => buildSolverHand([...(vh.map((c) => c.toUpperCase())), ...boardCards]));
+  function evaluate(boardCards: string[]): { heroBest: SolverHandResult; villainHands: SolverHandResult[] } {
+    const heroUpper = heroHole.map((c) => c.toUpperCase());
+    const boardUpper = boardCards.map((c) => c.toUpperCase());
+    const heroBest = buildSolverHand([...heroUpper, ...boardUpper]);
+    const villainHands = villains.map((villain) => {
+      const vUpper = villain.map((c) => c.toUpperCase());
+      return buildSolverHand([...vUpper, ...boardUpper]);
+    });
     return { heroBest, villainHands };
   }
 

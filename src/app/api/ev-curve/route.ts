@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 import { auth } from '@/auth';
 import { getEvCurve, computeHandEv } from '@/server/ev';
+import type { Hand, Action, HandPlayer } from '@/generated/prisma';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
@@ -26,17 +27,28 @@ export async function GET(req: NextRequest) {
       take: 5,
       include: { actions: true, players: true },
     });
-    const details = [] as any[];
-    for (const h of hands) {
+    type DebugHand = Hand & { actions: Action[]; players: HandPlayer[]; mainPotCents: number | null };
+    const details: Array<{
+      handId: string;
+      playedAt: Date | null;
+      heroSeat: number | null;
+      totalPotCents: number | null;
+      mainPotCents: number | null;
+      actionsCount: number;
+      players: Array<{ seat: number; isHero: boolean; hole: string | null }>;
+      contrib: number;
+      ev: Awaited<ReturnType<typeof computeHandEv>>;
+    }> = [];
+    for (const h of hands as DebugHand[]) {
       const ev = await computeHandEv(h.id);
       const heroSeat = h.heroSeat ?? h.players.find(p => p.isHero)?.seat ?? null;
-      const contrib = h.actions.filter(a => a.seat === heroSeat && a.sizeCents != null).reduce((s, a) => s + (a.sizeCents || 0), 0);
+      const contrib = h.actions.filter(a => a.seat === heroSeat && a.sizeCents != null).reduce((s, a) => s + (a.sizeCents ?? 0), 0);
       details.push({
         handId: h.id,
         playedAt: h.playedAt,
         heroSeat,
         totalPotCents: h.totalPotCents,
-        mainPotCents: (h as any).mainPotCents ?? null,
+        mainPotCents: h.mainPotCents ?? null,
         actionsCount: h.actions.length,
         players: h.players.map(p => ({ seat: p.seat, isHero: p.isHero, hole: p.hole })),
         contrib,

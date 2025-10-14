@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!isValid) return NextResponse.json({ error: 'invalid_signature' }, { status: 401 });
   }
 
-  const body = rawBody ? JSON.parse(rawBody) : {};
+  const body = rawBody ? JSON.parse(rawBody) as { importId?: string; fileKey?: string; userId?: string } : {};
   if (!body || body.importId !== importId || !body.fileKey || !body.userId) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
@@ -30,8 +30,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const result = await parseImport({ importId, fileKey: body.fileKey, userId: body.userId });
     return NextResponse.json({ ok: true, numHands: result.numHands });
-  } catch (err: any) {
-    await prisma.import.update({ where: { id: importId }, data: { status: 'failed', error: String(err?.message ?? err) } });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    await prisma.import.update({ where: { id: importId }, data: { status: 'failed', error: message } });
     return NextResponse.json({ error: 'parse_failed' }, { status: 500 });
   }
 }
