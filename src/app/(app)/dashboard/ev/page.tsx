@@ -27,7 +27,7 @@ export default function EvDashboardPage() {
       </div>
       <div style={{ width: '100%', height: 360 }}>
         <ResponsiveContainer>
-          <LineChart data={points.map((p, i) => ({...p, index: i + 1 }))}>
+          <LineChart data={[{ handId: '__start__', handNo: null, playedAt: null, cumActual: 0, cumAdj: 0 }, ...points].map((p, i) => ({ ...p, index: i }))}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="index" />
             <YAxis />
@@ -37,6 +37,7 @@ export default function EvDashboardPage() {
                 const arr = payload as Array<{ payload: Point & { index: number } }> | undefined;
                 const item = arr && arr.length > 0 ? arr[0] : undefined;
                 const p: (Point & { index: number }) | undefined = item?.payload;
+                if (p?.index === 0) return 'start';
                 return (p?.handNo ?? p?.handId ?? String(label)) as string;
               }}
             />
