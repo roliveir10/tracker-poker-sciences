@@ -31,10 +31,15 @@ export default function EvDashboardPage() {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="index" />
             <YAxis />
-            <Tooltip formatter={(v: number) => formatChips(v)} labelFormatter={(label, payload) => {
-              const p = (payload && payload[0] && (payload[0].payload as any)) || null;
-              return p?.handNo || p?.handId || String(label);
-            }} />
+            <Tooltip
+              formatter={(v: number) => formatChips(v)}
+              labelFormatter={(label, payload) => {
+                const arr = payload as Array<{ payload: Point & { index: number } }> | undefined;
+                const item = arr && arr.length > 0 ? arr[0] : undefined;
+                const p: (Point & { index: number }) | undefined = item?.payload;
+                return (p?.handNo ?? p?.handId ?? String(label)) as string;
+              }}
+            />
             <Line type="monotone" dataKey="cumActual" stroke="#94a3b8" dot={false} name="Cumul réalisé" />
             <Line type="monotone" dataKey="cumAdj" stroke="#2563eb" dot={false} name="Cumul all-in adj" />
           </LineChart>

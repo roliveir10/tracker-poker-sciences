@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { getEvCurve, computeHandEv } from '@/server/ev';
 import type { Hand, Action, HandPlayer } from '@/generated/prisma';
 import { prisma } from '@/lib/prisma';
-import { estimateMultiwayEquity } from '@/lib/poker/equity';
+// import { estimateMultiwayEquity } from '@/lib/poker/equity';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
