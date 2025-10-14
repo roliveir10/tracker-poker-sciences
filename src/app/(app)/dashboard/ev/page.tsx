@@ -13,7 +13,7 @@ export default function EvDashboardPage() {
   useEffect(() => {
     fetch('/api/ev-curve?limit=300')
       .then(async (r) => { if (!r.ok) throw new Error('failed'); return r.json(); })
-      .then((data) => { setPoints(normalize(data.points || [])); setChipEv(data.chipEvAdjTotal || 0); })
+      .then((data) => { setPoints(data.points || []); setChipEv(data.chipEvAdjTotal || 0); })
       .catch(() => setError('Impossible de charger la courbe EV.'));
   }, []);
 
@@ -63,11 +63,6 @@ function formatChips(cents: number) {
   return new Intl.NumberFormat('fr-FR').format(cents);
 }
 
-function normalize(points: Point[]): Point[] {
-  if (!points.length) return points;
-  const baseA = points[0].cumActual || 0;
-  const baseE = points[0].cumAdj || 0;
-  return points.map(p => ({ ...p, cumActual: p.cumActual - baseA, cumAdj: p.cumAdj - baseE }));
-}
+// normalization removed; curve starts with an explicit index 0 point injected in the chart data
 
 
