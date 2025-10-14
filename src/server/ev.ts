@@ -144,7 +144,7 @@ export async function computeHandEv(handId: string, options: EvOptions = {}): Pr
 export async function getEvCurve(userId: string, limit = 200, options: EvOptions = {}) {
   const hands = await prisma.hand.findMany({
     where: { tournament: { userId } },
-    orderBy: { playedAt: 'asc' },
+    orderBy: { createdAt: 'asc' },
     take: limit,
     select: { id: true, handNo: true, playedAt: true },
   });
