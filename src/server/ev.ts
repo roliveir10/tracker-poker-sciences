@@ -58,38 +58,92 @@ export async function computeHandEv(handId: string, options: EvOptions = {}): Pr
     return contrib;
   };
 
-  // Realized change
-  let realized: number | null = null;
-  // If there is an all-in, compute realized from matched at all-in (HU) with dead money
-  const allInIdx = hand.actions.findIndex((a) => a.isAllIn && a.seat === heroSeat);
-  if (allInIdx >= 0 && heroSeat != null) {
-    // Recompute invested up to all-in index on that street
-    const invested: Record<number, number> = {};
-    let streetAI: 'preflop' | 'flop' | 'turn' | 'river' = hand.actions[allInIdx].street;
-    for (const a of hand.actions.slice(0, allInIdx + 1).sort((x, y) => x.orderNo - y.orderNo)) {
-      if (a.street !== streetAI) {
-        // keep only current all-in street
-        for (const key of Object.keys(invested)) delete invested[Number(key)];
-        streetAI = a.street;
+  // Helper: compute total contributions per seat across the whole hand (handles "raise to X" per street)
+  const computeTotalContributionsPerSeat = (): Record<number, number> => {
+    const totals: Record<number, number> = {};
+    const investedOnStreet: Record<number, number> = {};
+    let currentStreet: 'preflop' | 'flop' | 'turn' | 'river' = 'preflop';
+    for (const a of hand.actions.sort((a, b) => a.orderNo - b.orderNo)) {
+      if (a.street !== currentStreet) {
+        for (const key of Object.keys(investedOnStreet)) delete investedOnStreet[Number(key)];
+        currentStreet = a.street;
       }
       if (a.seat == null) continue;
-      const prev = invested[a.seat] ?? 0;
-      if (a.type === 'check' || a.type === 'fold') continue;
-      if (a.type === 'call' || a.type === 'bet') invested[a.seat] = prev + Math.max(0, a.sizeCents ?? 0);
-      if (a.type === 'raise' || a.type === 'push') invested[a.seat] = Math.max(prev, Math.max(0, a.sizeCents ?? 0));
+      const prev = investedOnStreet[a.seat] ?? 0;
+      let inc = 0;
+      if (a.type === 'check' || a.type === 'fold') {
+        // no contribution increment
+      } else if (a.type === 'call' || a.type === 'bet') {
+        inc = Math.max(0, a.sizeCents ?? 0);
+        investedOnStreet[a.seat] = prev + inc;
+      } else if (a.type === 'raise' || a.type === 'push') {
+        const to = Math.max(0, a.sizeCents ?? 0);
+        inc = Math.max(0, to - prev);
+        investedOnStreet[a.seat] = Math.max(prev, to);
+      }
+      if (inc > 0) totals[a.seat] = (totals[a.seat] ?? 0) + inc;
     }
-    const oppSeat = Object.entries(invested).map(([s, v]) => [Number(s), v as number]).filter(([s]) => s !== heroSeat).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-    if (oppSeat != null) {
-      const matched = Math.min(invested[heroSeat] ?? 0, invested[oppSeat] ?? 0);
-      // HU réalisé strict: +matched si Hero gagne, sinon -matched
-      realized = hand.winnerSeat === heroSeat ? matched : -matched;
+    return totals;
+  };
+
+  // Helper: compute contributions per seat up to a given action index (inclusive)
+  const computeContributionsPerSeatUpTo = (endIdxInclusive: number): Record<number, number> => {
+    const totals: Record<number, number> = {};
+    const investedOnStreet: Record<number, number> = {};
+    let currentStreet: 'preflop' | 'flop' | 'turn' | 'river' = 'preflop';
+    for (const a of hand.actions.slice(0, endIdxInclusive + 1).sort((a, b) => a.orderNo - b.orderNo)) {
+      if (a.street !== currentStreet) {
+        for (const key of Object.keys(investedOnStreet)) delete investedOnStreet[Number(key)];
+        currentStreet = a.street;
+      }
+      if (a.seat == null) continue;
+      const prev = investedOnStreet[a.seat] ?? 0;
+      let inc = 0;
+      if (a.type === 'check' || a.type === 'fold') {
+      } else if (a.type === 'call' || a.type === 'bet') {
+        inc = Math.max(0, a.sizeCents ?? 0);
+        investedOnStreet[a.seat] = prev + inc;
+      } else if (a.type === 'raise' || a.type === 'push') {
+        const to = Math.max(0, a.sizeCents ?? 0);
+        inc = Math.max(0, to - prev);
+        investedOnStreet[a.seat] = Math.max(prev, to);
+      }
+      if (inc > 0) totals[a.seat] = (totals[a.seat] ?? 0) + inc;
     }
-  }
-  // Fallback realized when no all-in detected
-  if (realized == null && (typeof hand.totalPotCents === 'number' || typeof hand.mainPotCents === 'number')) {
-    const contrib = computeHeroContribution();
-    const pot = (hand.totalPotCents ?? 0) || (hand.mainPotCents ?? 0);
-    if (pot > 0) realized = hand.winnerSeat === heroSeat ? pot - contrib : -contrib;
+    return totals;
+  };
+
+  // Realized change
+  let realized: number | null = null;
+  const allInIdx = hand.actions.findIndex((a) => a.isAllIn && a.seat === heroSeat);
+  const totalsPerSeatFinal = computeTotalContributionsPerSeat();
+  const heroTotalContrib = totalsPerSeatFinal[heroSeat] ?? computeHeroContribution();
+  if (allInIdx >= 0) {
+    // Determine seats still alive at hero's all-in (not folded before that point)
+    const foldedAtAI: Set<number> = new Set();
+    let aiStreet: 'preflop' | 'flop' | 'turn' | 'river' = hand.actions[allInIdx].street;
+    for (const a of hand.actions.slice(0, allInIdx + 1).sort((x, y) => x.orderNo - y.orderNo)) {
+      if (a.seat == null) continue;
+      if (a.type === 'fold') foldedAtAI.add(a.seat);
+      aiStreet = a.street;
+    }
+    const totalsAtAI = computeContributionsPerSeatUpTo(allInIdx);
+    const heroInvestAI = totalsAtAI[heroSeat] ?? 0;
+    const allSeats = Array.from(new Set(Object.keys(totalsAtAI).map((s) => Number(s))));
+    const aliveOpponents = allSeats.filter((s) => s !== heroSeat && !foldedAtAI.has(s));
+    const deadMoney = allSeats.filter((s) => s !== heroSeat && foldedAtAI.has(s)).reduce((sum, s) => sum + (totalsAtAI[s] ?? 0), 0);
+    const oppMatchedSum = aliveOpponents.reduce((sum, s) => sum + Math.min(heroInvestAI, totalsAtAI[s] ?? 0), 0);
+    const eligiblePot = heroInvestAI + oppMatchedSum + deadMoney;
+    if (eligiblePot > 0) {
+      realized = hand.winnerSeat === heroSeat ? eligiblePot - heroInvestAI : -heroInvestAI;
+    }
+  } else {
+    // No all-in detected: compute realized from final pot fields or totals
+    const potFromTotals = Object.values(totalsPerSeatFinal).reduce((a, b) => a + b, 0);
+    const pot = (hand.totalPotCents ?? hand.mainPotCents ?? null) ?? (potFromTotals > 0 ? potFromTotals : null);
+    if (pot != null) {
+      realized = hand.winnerSeat === heroSeat ? pot - heroTotalContrib : -heroTotalContrib;
+    }
   }
 
   // All-in adjusted: find first all-in involving hero, compute equity vs opponents alive at that point using revealed cards and board at that time
@@ -109,33 +163,18 @@ export async function computeHandEv(handId: string, options: EvOptions = {}): Pr
       boardCards = full.slice(0, 5);
     }
 
-    // Compute matched contributions HU up to the all-in moment
-    const investedPerSeat: Record<number, number> = {};
-    let street: 'preflop' | 'flop' | 'turn' | 'river' = 'preflop';
+    // Determine opponents alive at AI and their final contributions
     const folded: Set<number> = new Set();
     for (const a of hand.actions.slice(0, allInIdx + 1).sort((x, y) => x.orderNo - y.orderNo)) {
-      if (a.street !== street) {
-        // reset per-street invested trackers
-        for (const key of Object.keys(investedPerSeat)) delete investedPerSeat[Number(key)];
-        street = a.street;
-      }
-      if (a.seat == null) continue;
-      if (a.type === 'fold') { folded.add(a.seat); continue; }
-      const prev = investedPerSeat[a.seat] ?? 0;
-      if (a.type === 'check') continue;
-      if (a.type === 'call' || a.type === 'bet') {
-        investedPerSeat[a.seat] = prev + Math.max(0, a.sizeCents ?? 0);
-      } else if (a.type === 'raise' || a.type === 'push') {
-        const to = Math.max(0, a.sizeCents ?? 0);
-        investedPerSeat[a.seat] = Math.max(prev, to);
-      }
+      if (a.seat != null && a.type === 'fold') folded.add(a.seat);
     }
-    // Determine opponent seat (highest invested not hero & not folded)
-    const seatToInvested = Object.entries(investedPerSeat).map(([s, v]) => [Number(s), v as number]);
-    const opponents = seatToInvested
-      .filter(([s]) => s !== heroSeat && !folded.has(s))
-      .sort((a, b) => (b[1] - a[1]));
-    const oppSeat = opponents.length > 0 ? opponents[0][0] : null;
+    const totalsAtAI = computeContributionsPerSeatUpTo(allInIdx);
+    const allSeats = Array.from(new Set(Object.keys(totalsAtAI).map((s) => Number(s))));
+    const aliveOpponents = allSeats.filter((s) => s !== heroSeat && !folded.has(s));
+    // For equity, keep HU behavior (pick the most involved opponent if multiple)
+    const oppSeat = aliveOpponents
+      .map((s) => [s, totalsAtAI[s] ?? 0] as [number, number])
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
     const heroHole = ((heroPlayer?.hole || hand.dealtCards || '')
       .replace(/[\[\]]/g, ' ')
@@ -148,11 +187,13 @@ export async function computeHandEv(handId: string, options: EvOptions = {}): Pr
       const rng = options.seed != null ? makeSeededRng(options.seed) : Math.random;
       const samples = options.samples ?? 10000;
       const eq = estimateMultiwayEquity(heroHole as [string, string], villains, boardCards, samples, rng);
-      // Strict HU formula per spec: EV = (2*equity - 1) * matched
-      const heroInvest = investedPerSeat[heroSeat] ?? 0;
-      const oppInvest = investedPerSeat[oppSeat] ?? 0;
-      const matched = Math.min(heroInvest, oppInvest);
-      adjusted = Math.round((2 * eq.winPct - 1) * matched);
+      const effectiveEq = villains.length === 1 ? (eq.winPct + 0.5 * eq.tiePct) : eq.winPct;
+      // Build eligible pot for hero at AI: hero + sum(min(hero, opp)) + dead money
+      const heroInvestAI = totalsAtAI[heroSeat] ?? 0;
+      const deadMoney = allSeats.filter((s) => s !== heroSeat && folded.has(s)).reduce((sum, s) => sum + (totalsAtAI[s] ?? 0), 0);
+      const oppMatchedSum = aliveOpponents.reduce((sum, s) => sum + Math.min(heroInvestAI, totalsAtAI[s] ?? 0), 0);
+      const eligiblePot = heroInvestAI + oppMatchedSum + deadMoney;
+      adjusted = Math.round(effectiveEq * eligiblePot - heroInvestAI);
     }
   }
 
