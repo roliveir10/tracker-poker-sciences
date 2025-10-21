@@ -22,4 +22,35 @@ describe('parseBetclicText', () => {
         });
         expect(some, 'expected at least one hand with players, actions and total pot').toBeTruthy();
     });
+
+	it('marque un post de small blind all-in comme all-in', () => {
+		const raw = `
+*** HEADER ***
+Game ID: test-game
+*** PLAYERS ***
+Seat 1: Hero (10) [SB Hero]
+Seat 2: Villain (1000) [BB]
+*** HOLE CARDS ***
+Hero: [As 2s]
+Villain: [Kd Qh]
+*** PRE-FLOP ***
+00:00:00 - Hero: Posts SB 10 and is all-in
+00:00:01 - Villain: Posts BB 20
+00:00:02 - Villain: Calls 10
+*** FLOP *** [Ah Kd Qh]
+*** SUMMARY ***
+Hero wins main pot of 20
+Villain wins 1st side pot of 10
+`;
+		const res = parseBetclicText(raw);
+		const firstTournament = res.tournaments[0];
+		expect(firstTournament).toBeTruthy();
+		const hand = firstTournament?.hands[0];
+		expect(hand).toBeTruthy();
+		const actions = hand?.actions ?? [];
+		const sbAction = actions.find((a) => a.seat === 1);
+		expect(sbAction?.isAllIn).toBe(true);
+		expect(sbAction?.type).toBe('push');
+		expect(sbAction?.sizeCents).toBe(10);
+	});
 });

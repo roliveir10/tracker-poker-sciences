@@ -30,13 +30,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   try {
     const result = await parseImport({ importId, fileKey: body.fileKey, userId: body.userId });
-    return NextResponse.json({ ok: true, numHands: result.numHands });
+    return NextResponse.json({ ok: true, numHands: result.numHands, timings: result.timings });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     await prisma.import.update({ where: { id: importId }, data: { status: 'failed', error: message } });
     return NextResponse.json({ error: 'parse_failed' }, { status: 500 });
   }
 }
-
 
 

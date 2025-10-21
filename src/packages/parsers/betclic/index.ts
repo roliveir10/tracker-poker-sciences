@@ -55,6 +55,14 @@ function escapeRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function parseChipValue(raw: string | null | undefined): number | null {
+	if (!raw) return null;
+	const cleaned = raw.replace(/[^0-9-]/g, '');
+	if (cleaned.length === 0 || cleaned === '-') return null;
+	const parsed = parseInt(cleaned, 10);
+	return Number.isNaN(parsed) ? null : parsed;
+}
+
 // Line-oriented tolerant parser extracting tournaments and basic hand info
 export function parseBetclicText(raw: string): ParsedResult {
 	const lines = raw.split(/\r?\n/);
@@ -150,15 +158,26 @@ export function parseBetclicText(raw: string): ParsedResult {
 				current.hands.push(hand);
 			}
 		}
-		if (line.startsWith('Hand ID:')) {
+        if (line.startsWith('Hand ID:')) {
 			const id = line.split(':').slice(1).join(':').trim();
 			if (current.hands.length === 0) current.hands.push({ handId: id, sbCents: null, bbCents: null, heroSeat: null, dealtCards: null, board: null, boardFlop: null, boardTurn: null, boardRiver: null, winnerSeat: null, playedAt: current.startedAt, actions: [], players: [], totalPotCents: null });
 			else current.hands[current.hands.length - 1].handId = id;
 		}
+        // Some files provide a per-hand timestamp line
+        if (line.startsWith('Date & Time:')) {
+            // Example: Date & Time: 2025-10-17 10:32:51 (UTC)
+            const t = line.split(':').slice(1).join(':').trim();
+            const m = t.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
+            const dt = m ? new Date(m[1] + 'Z') : null;
+            if (current.hands.length === 0) {
+                current.hands.push({ handId: null, sbCents: null, bbCents: null, heroSeat: null, dealtCards: null, board: null, boardFlop: null, boardTurn: null, boardRiver: null, winnerSeat: null, playedAt: dt ?? current.startedAt, actions: [], players: [], totalPotCents: null });
+            } else {
+                current.hands[current.hands.length - 1].playedAt = dt ?? current.startedAt;
+            }
+        }
 		if (line.startsWith('Total Pot:')) {
-			const mm = line.match(/Total Pot:\s*(\d+)/i);
-			if (mm) {
-				const val = parseInt(mm[1], 10);
+			const val = parseChipValue(line.split(':').slice(1).join(':'));
+			if (val != null) {
 				pendingTotalPotCents = val;
 				if (current.hands.length > 0) {
 					current.hands[current.hands.length - 1].totalPotCents = val;
@@ -166,10 +185,11 @@ export function parseBetclicText(raw: string): ParsedResult {
 			}
 		}
 		if (line.startsWith('Blinds:')) {
-			const mm = line.match(/(\d+)\/(\d+)/);
+			const mm = line.match(/([0-9][0-9\s.,]*)\/([0-9][0-9\s.,]*)/);
 			if (mm) {
-				const sb = parseInt(mm[1], 10);
-				const bb = parseInt(mm[2], 10);
+				const sb = parseChipValue(mm[1]);
+				const bb = parseChipValue(mm[2]);
+				if (sb == null || bb == null) continue;
 				if (current.hands.length === 0) current.hands.push({ handId: null, sbCents: sb, bbCents: bb, heroSeat: null, dealtCards: null, board: null, boardFlop: null, boardTurn: null, boardRiver: null, winnerSeat: null, playedAt: current.startedAt, actions: [], players: [], totalPotCents: null });
 				else { current.hands[current.hands.length - 1].sbCents = sb; current.hands[current.hands.length - 1].bbCents = bb; }
 			}
@@ -188,14 +208,15 @@ export function parseBetclicText(raw: string): ParsedResult {
 		}
 		// Map all seats (not only Hero)
 		if (inPlayers && line.startsWith('Seat ')) {
-			const m = line.match(/Seat\s+(\d+):\s+([^\(]+)\s*\((\d+)\)/);
+			const m = line.match(/Seat\s+(\d+):\s+([^\(]+)\s*\(([^)]+)\)/);
 			if (m) {
 				const seat = parseInt(m[1], 10);
 				const name = m[2].trim();
+				const stack = parseChipValue(m[3]);
 				nameToSeat[name] = seat;
 				if (!currentPlayers.find(p => p.seat === seat)) {
 					const isHero = /Hero/.test(line);
-					currentPlayers.push({ seat, name, startingStackCents: parseInt(m[3], 10), isHero, hole: null });
+					currentPlayers.push({ seat, name, startingStackCents: stack ?? null, isHero, hole: null });
 				}
 			}
 		}
@@ -268,11 +289,23 @@ export function parseBetclicText(raw: string): ParsedResult {
 					h.actions!.push({ orderNo: ++actionOrder, street: currentStreet, seat, type, sizeCents, isAllIn });
 				};
 				let mm: RegExpMatchArray | null;
-				if ((mm = rest.match(/^Posts SB\s+(\d+)/i))) { pushAction('bet', parseInt(mm[1], 10), false); continue; }
-				if ((mm = rest.match(/^Posts BB\s+(\d+)/i))) { pushAction('bet', parseInt(mm[1], 10), false); continue; }
-				if ((mm = rest.match(/^Raises to\s+(\d+)(?:\s+and\s+is\s+all-in)?/i))) { const isAllIn = /all-in/i.test(rest); pushAction(isAllIn ? 'push' : 'raise', parseInt(mm[1], 10), isAllIn); continue; }
-				if ((mm = rest.match(/^Bets\s+(\d+)(?:\s+and\s+is\s+all-in)?/i))) { const isAllIn = /all-in/i.test(rest); pushAction(isAllIn ? 'push' : 'bet', parseInt(mm[1], 10), isAllIn); continue; }
-				if ((mm = rest.match(/^Calls\s+(\d+)(?:\s+and\s+is\s+all-in)?/i))) { const isAllIn = /all-in/i.test(rest); pushAction('call', parseInt(mm[1], 10), isAllIn); continue; }
+				if ((mm = rest.match(/^Posts SB\s+([0-9][0-9\s.,]*)(?:\s+and\s+is\s+all-?in)?/i))) {
+					const amount = parseChipValue(mm[1]);
+					if (amount == null) continue;
+					const isAllIn = /all-?in/i.test(rest);
+					pushAction(isAllIn ? 'push' : 'bet', amount, isAllIn);
+					continue;
+				}
+				if ((mm = rest.match(/^Posts BB\s+([0-9][0-9\s.,]*)(?:\s+and\s+is\s+all-?in)?/i))) {
+					const amount = parseChipValue(mm[1]);
+					if (amount == null) continue;
+					const isAllIn = /all-?in/i.test(rest);
+					pushAction(isAllIn ? 'push' : 'bet', amount, isAllIn);
+					continue;
+				}
+				if ((mm = rest.match(/^Raises to\s+([0-9][0-9\s.,]*)(?:\s+and\s+is\s+all-in)?/i))) { const isAllIn = /all-in/i.test(rest); const amount = parseChipValue(mm[1]); if (amount == null) continue; pushAction(isAllIn ? 'push' : 'raise', amount, isAllIn); continue; }
+				if ((mm = rest.match(/^Bets\s+([0-9][0-9\s.,]*)(?:\s+and\s+is\s+all-in)?/i))) { const isAllIn = /all-in/i.test(rest); const amount = parseChipValue(mm[1]); if (amount == null) continue; pushAction(isAllIn ? 'push' : 'bet', amount, isAllIn); continue; }
+				if ((mm = rest.match(/^Calls\s+([0-9][0-9\s.,]*)(?:\s+and\s+is\s+all-in)?/i))) { const isAllIn = /all-in/i.test(rest); const amount = parseChipValue(mm[1]); if (amount == null) continue; pushAction('call', amount, isAllIn); continue; }
 				if (/^Checks/i.test(rest)) { pushAction('check', null, false); continue; }
 				if (/^Folds/i.test(rest)) { pushAction('fold', null, false); continue; }
 			}
@@ -280,7 +313,7 @@ export function parseBetclicText(raw: string): ParsedResult {
 
         // Winner seat from summary: capture winner and main pot amount if present
 		if (inSummary && current.hands.length > 0) {
-			const win = line.match(/^([^\n]+)\s+wins\s+((?:main|side)\s+pot)?\s*.*\s+of\s+(\d+)/i);
+			const win = line.match(/^([^\n]+)\s+wins\s+((?:main|side)\s+pot)?\s*.*\s+of\s+([0-9][0-9\s.,]*)/i);
             if (win) {
                 const winnerName = win[1].trim();
                 const seat = nameToSeat[winnerName];
@@ -290,9 +323,9 @@ export function parseBetclicText(raw: string): ParsedResult {
                     // Fallback: if winner is hero by name, use heroSeat
                     if (typeof last.heroSeat === 'number') last.winnerSeat = last.heroSeat;
                 }
-                const amount = parseInt(win[3], 10);
+                const amount = parseChipValue(win[3]);
                 if ((win[2] || '').toLowerCase().includes('main')) {
-					last.mainPotCents = amount;
+					last.mainPotCents = amount ?? null;
                 }
             }
         }
@@ -316,5 +349,3 @@ export function parseBetclicText(raw: string): ParsedResult {
 	}
 	return { tournaments };
 }
-
-

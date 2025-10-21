@@ -51,3 +51,28 @@ export async function getObjectAsString(key: string): Promise<string> {
 }
 
 
+export async function getObjectAsBuffer(key: string): Promise<Buffer> {
+  // Dev fallback: absolute path or file://
+  if (key.startsWith('file://')) {
+    const filePath = key.replace('file://', '');
+    const data = await readFile(filePath);
+    return Buffer.from(data);
+  }
+  if (key.startsWith('/')) {
+    const data = await readFile(key);
+    return Buffer.from(data);
+  }
+
+  const result = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  const body = result.Body;
+  if (!body) return Buffer.alloc(0);
+  const chunks: Buffer[] = [];
+  const stream: NodeJS.ReadableStream = body as unknown as NodeJS.ReadableStream;
+  return await new Promise<Buffer>((resolve, reject) => {
+    stream.on('data', (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+

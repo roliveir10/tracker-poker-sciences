@@ -161,6 +161,10 @@ model Hand {
   createdAt    DateTime  @default(now())
   totalPotCents Int?
   mainPotCents  Int?
+  evRealizedCents Int?
+  evAllInAdjCents Int?
+  evSamples   Int     @default(0)
+  evUpdatedAt DateTime?
 
   actions      Action[]
   players      HandPlayer[]

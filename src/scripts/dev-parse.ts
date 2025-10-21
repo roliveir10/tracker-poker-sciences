@@ -17,6 +17,7 @@ async function main() {
 	const imp = await prisma.import.create({ data: { userId: user.id, status: 'queued', fileKey } });
 	const result = await parseImport({ importId: imp.id, fileKey, userId: user.id });
 	console.log('Parsed hands:', result.numHands, 'Import ID:', imp.id, 'File:', filePath);
+	console.log('Timings (ms):', result.timings);
 }
 
 main()
@@ -27,5 +28,4 @@ main()
 	.finally(async () => {
 		await prisma.$disconnect();
 	});
-
 

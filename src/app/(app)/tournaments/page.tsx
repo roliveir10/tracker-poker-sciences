@@ -2,6 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '@/components/ui/table';
+import { buttonVariants } from '@/components/ui/button';
 
 type Tournament = {
 	id: string;
@@ -17,51 +33,84 @@ type Tournament = {
 export default function TournamentsPage() {
 	const [rows, setRows] = useState<Tournament[]>([]);
 	const [error, setError] = useState<string | null>(null);
+
 	useEffect(() => {
 		fetch('/api/tournaments')
-			.then(async (r) => {
-				if (!r.ok) throw new Error(await r.text());
-				return r.json();
+			.then(async (response) => {
+				if (!response.ok) throw new Error(await response.text());
+				return response.json();
 			})
 			.then((data) => {
 				setRows(Array.isArray(data) ? data : []);
 			})
-			.catch(() => setError('Impossible de charger les tournois.'));
+			.catch(() => setError('Unable to load tournaments.'));
 	}, []);
+
 	return (
-		<div className="max-w-4xl mx-auto p-6 space-y-4">
-			<h1 className="text-2xl font-semibold">Tournois</h1>
-			{error && <p className="text-sm text-red-600">{error}</p>}
-			<div className="border rounded">
-				<table className="w-full text-sm">
-					<thead>
-						<tr className="text-left border-b">
-							<th className="p-2">Date</th>
-							<th className="p-2">Buy-in</th>
-							<th className="p-2">Prize pool</th>
-							<th className="p-2">x</th>
-							<th className="p-2">Résultat</th>
-							<th className="p-2">Profit</th>
-						</tr>
-					</thead>
-					<tbody>
-						{rows.map((t) => (
-							<tr key={t.id} className="border-b">
-								<td className="p-2"><Link className="text-blue-600 underline" href={`/tournaments/${t.id}`}>{new Date(t.startedAt).toLocaleString()}</Link></td>
-								<td className="p-2">{formatEuros(t.buyInCents + t.rakeCents)}</td>
-								<td className="p-2">{formatEuros(t.prizePoolCents)}</td>
-								<td className="p-2">{t.prizeMultiplier}</td>
-								<td className="p-2">{t.heroResultPosition ?? '-'}</td>
-								<td className="p-2">{formatEuros(t.profitCents)}</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
+		<main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-10">
+			<div className="space-y-2">
+				<h1 className="text-3xl font-semibold tracking-tight text-foreground">Tournaments</h1>
+				<p className="text-sm text-muted-foreground">
+					Explore completed Spin &amp; Go games, their multipliers, and the associated profits.
+				</p>
 			</div>
-		</div>
+
+			{error && (
+				<div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+					{error}
+				</div>
+			)}
+
+			<Card>
+				<CardHeader className="space-y-1">
+					<CardTitle>Tournament history</CardTitle>
+					<CardDescription>
+						Check multipliers, prize pools, and your results for each Spin &amp; Go.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Date</TableHead>
+								<TableHead>Buy-in</TableHead>
+								<TableHead>Prize pool</TableHead>
+								<TableHead>Multiplier</TableHead>
+								<TableHead>Result</TableHead>
+								<TableHead className="text-right">Profit</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{rows.map((row) => (
+								<TableRow key={row.id}>
+									<TableCell>
+										<Link
+											className={buttonVariants({ variant: 'link' })}
+											href={`/tournaments/${row.id}`}
+										>
+											{new Date(row.startedAt).toLocaleString("en-US")}
+										</Link>
+									</TableCell>
+									<TableCell>{formatEuros(row.buyInCents + row.rakeCents)}</TableCell>
+									<TableCell>{formatEuros(row.prizePoolCents)}</TableCell>
+									<TableCell>{row.prizeMultiplier}</TableCell>
+									<TableCell>{row.heroResultPosition ?? '—'}</TableCell>
+									<TableCell className="text-right">{formatEuros(row.profitCents)}</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+					{rows.length === 0 && (
+						<div className="mt-6 rounded-md border border-border/60 bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+							No tournaments yet. Import your hands to populate this section.
+						</div>
+					)}
+				</CardContent>
+			</Card>
+		</main>
 	);
 }
 
 function formatEuros(cents: number) {
-	return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((cents || 0) / 100);
+	return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format((cents || 0) / 100);
 }
