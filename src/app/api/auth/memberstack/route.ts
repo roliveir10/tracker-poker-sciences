@@ -50,6 +50,18 @@ export async function POST(req: NextRequest) {
       create: { email, name: name ?? undefined },
     });
 
+    // Lier (ou créer) le compte provider 'memberstack' pour ce user
+    await prisma.account.upsert({
+      where: { provider_providerAccountId: { provider: 'memberstack', providerAccountId: memberId } },
+      update: { userId: user.id },
+      create: {
+        userId: user.id,
+        type: 'oauth',
+        provider: 'memberstack',
+        providerAccountId: memberId,
+      },
+    });
+
     // Crée une session DB et dépose le cookie de session pour NextAuth
     const token = createSessionToken();
     const maxAgeSec = 30 * 24 * 60 * 60; // 30 jours
