@@ -50,7 +50,14 @@ export async function POST(req: NextRequest) {
       ms = (await fetchMemberstackMember(memberId)) as MemberstackMemberResponse;
     } catch (e: unknown) {
       const msg = String(e instanceof Error ? e.message : e);
-      if (msg.includes('404')) {
+      // Map erreurs côté Memberstack:
+      // - 401/403: clé API invalide/interdite -> 502
+      // - 4xx autres (400/404/422...): memberId invalide/non trouvé -> 400
+      // - 5xx: 502
+      if (msg.includes('401') || msg.includes('403')) {
+        return NextResponse.json({ error: 'upstream_auth_error' }, { status: 502 });
+      }
+      if (msg.includes('404') || msg.includes('400') || msg.includes('422')) {
         return NextResponse.json({ error: 'member_not_found' }, { status: 400 });
       }
       return NextResponse.json({ error: 'upstream_error' }, { status: 502 });
