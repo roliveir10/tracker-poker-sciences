@@ -15,7 +15,7 @@ import {
 
 export function SidebarNav() {
   const pathname = usePathname();
-  type MemberstackSdk = { openModal: (arg: { type: 'LOGIN' | 'SIGNUP' | 'PROFILE' }) => Promise<void> } | null;
+  type MemberstackSdk = { openModal: (type: 'LOGIN' | 'SIGNUP' | 'PROFILE' | 'FORGOT_PASSWORD' | 'RESET_PASSWORD') => Promise<void> } | null;
   const [ms, setMs] = useState<MemberstackSdk>(null);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export function SidebarNav() {
             onClick={(e) => {
               if (href === "/signin" && ms) {
                 e.preventDefault();
-                ms.openModal({ type: "LOGIN" }).catch(() => {});
+                ms.openModal("LOGIN").catch(() => {});
               }
             }}
             className={cn(

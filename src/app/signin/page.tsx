@@ -59,7 +59,7 @@ export default function SignInPage() {
         });
 
         // Ouvre le modal de connexion automatiquement
-        await ms.openModal({ type: 'LOGIN' });
+        await ms.openModal('LOGIN');
       } catch {
         // silencieux, on garde le fallback email
       }
@@ -97,7 +97,7 @@ export default function SignInPage() {
 									if (!publicKey) return;
 									const mod = await import('@memberstack/dom');
 									const ms = await mod.default.init({ publicKey });
-									await ms.openModal({ type: 'LOGIN' });
+									await ms.openModal('LOGIN');
 								} catch {}
 							}}
 						>
