@@ -24,7 +24,7 @@ export async function fetchMemberstackMember(memberId: string): Promise<Memberst
   const res = await fetch(url, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      'x-api-key': apiKey,
       'Content-Type': 'application/json',
     },
     // Ne pas envoyer de cookies cross-site
