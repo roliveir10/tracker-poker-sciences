@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { SidebarNav } from "@/components/SidebarNav";
+import AutoSso from "@/components/AutoSso";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -47,6 +48,7 @@ export default function RootLayout({
               <SidebarNav />
             </aside>
             <div className="flex flex-1 flex-col">
+              <AutoSso />
               {children}
             </div>
           </div>
