@@ -88,10 +88,11 @@ export default function DashboardPage() {
 	const [timeTo, setTimeTo] = useState<string | undefined>(() => saved?.timeTo ?? undefined);
 	const [moreOpen, setMoreOpen] = useState<boolean>(() => saved?.moreOpen ?? false);
 	const [customMode, setCustomMode] = useState<'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate'>(() => (saved?.customMode === 'onDate' ? 'onDate' : (saved?.customMode ?? 'since')));
-	const [draftDateFrom, setDraftDateFrom] = useState<string>('');
-	const [draftDateTo, setDraftDateTo] = useState<string>('');
-	const [draftTimeFrom, setDraftTimeFrom] = useState<string>('');
-	const [draftTimeTo, setDraftTimeTo] = useState<string>('');
+const [draftDateFrom, setDraftDateFrom] = useState<string>('');
+const [draftDateTo, setDraftDateTo] = useState<string>('');
+const [draftTimeFrom, setDraftTimeFrom] = useState<string>('');
+const [draftTimeTo, setDraftTimeTo] = useState<string>('');
+const [draftCustomMode, setDraftCustomMode] = useState<'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate' | undefined>(undefined);
 	const [chartView, setChartView] = useState<'chips' | 'bankroll'>(() => saved?.chartView ?? 'chips');
 
 	const parseStoredArray = <T,>(value: unknown, guard: (v: unknown) => v is T): T[] => {
@@ -186,7 +187,12 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
 		if (period === 'custom') {
 			if (customMode === 'since' && dateFrom) return `Since ${dateFrom}`;
 			if (customMode === 'before' && dateTo) return `Before ${dateTo}`;
-			if (customMode === 'onDate' && dateFrom && dateTo && dateFrom === dateTo) return `${dateFrom}`;
+			if (customMode === 'onDate') {
+				// Afficher toujours la date choisie si disponible
+				if (dateFrom && dateTo && dateFrom === dateTo) return `${dateFrom}`;
+				if (dateFrom) return `${dateFrom}`;
+				if (dateTo) return `${dateTo}`;
+			}
 			if (customMode === 'betweenDates' && dateFrom && dateTo) return `${dateFrom} → ${dateTo}`;
 			if (customMode === 'betweenHours' && timeFrom && timeTo) return `${timeFrom}–${timeTo}`;
 			return 'Custom';
@@ -294,7 +300,17 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
                                             size="sm"
                                             type="button"
                                             onClick={() => {
-                                                setMoreOpen((v) => !v);
+                                                setMoreOpen((v) => {
+                                                    const next = !v;
+                                                    if (next) {
+                                                        setDraftCustomMode(period === 'custom' ? customMode : undefined);
+                                                        setDraftDateFrom('');
+                                                        setDraftDateTo('');
+                                                        setDraftTimeFrom('');
+                                                        setDraftTimeTo('');
+                                                    }
+                                                    return next;
+                                                });
                                             }}
                                         >
                                             {rangeLabel === 'Date' ? 'Date' : `Date: ${rangeLabel}`}
@@ -315,46 +331,46 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
                                                      <div className="text-xs font-medium text-muted-foreground">Custom range</div>
                                                      <div className="grid grid-cols-2 gap-2 text-sm">
                                                          <label className="flex items-center gap-2">
-                                                             <input type="radio" name="custom-mode" checked={customMode === 'since'} onChange={() => setCustomMode('since')} />
+                                                             <input type="radio" name="custom-mode" checked={draftCustomMode === 'since'} onChange={() => setDraftCustomMode('since')} />
                                                              <span>Since Date</span>
                                                          </label>
                                                          <label className="flex items-center gap-2">
-                                                             <input type="radio" name="custom-mode" checked={customMode === 'before'} onChange={() => setCustomMode('before')} />
+                                                             <input type="radio" name="custom-mode" checked={draftCustomMode === 'before'} onChange={() => setDraftCustomMode('before')} />
                                                              <span>Before Date</span>
                                                          </label>
                                                          <label className="col-span-2 flex items-center gap-2">
-                                                             <input type="radio" name="custom-mode" checked={customMode === 'betweenDates'} onChange={() => setCustomMode('betweenDates')} />
+                                                             <input type="radio" name="custom-mode" checked={draftCustomMode === 'betweenDates'} onChange={() => setDraftCustomMode('betweenDates')} />
                                                              <span>Between Dates</span>
                                                          </label>
                                                          <label className="col-span-2 flex items-center gap-2">
-                                                             <input type="radio" name="custom-mode" checked={customMode === 'betweenHours'} onChange={() => setCustomMode('betweenHours')} />
+                                                             <input type="radio" name="custom-mode" checked={draftCustomMode === 'betweenHours'} onChange={() => setDraftCustomMode('betweenHours')} />
                                                              <span>Between Hours</span>
                                                          </label>
                                                          <label className="col-span-2 flex items-center gap-2">
-                                                             <input type="radio" name="custom-mode" checked={customMode === 'onDate'} onChange={() => setCustomMode('onDate')} />
+                                                             <input type="radio" name="custom-mode" checked={draftCustomMode === 'onDate'} onChange={() => setDraftCustomMode('onDate')} />
                                                              <span>Select Date</span>
                                                          </label>
                                                      </div>
                                                      <div className="space-y-2">
-                                                         {customMode === 'since' && (
+                                                         {draftCustomMode === 'since' && (
                                                              <div className="grid gap-2">
                                                                  <Label htmlFor="since-date">Date</Label>
                                                                  <Input id="since-date" type="date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} />
                                                              </div>
                                                          )}
-                                                         {customMode === 'onDate' && (
+                                                         {draftCustomMode === 'onDate' && (
                                                              <div className="grid gap-2">
                                                                  <Label htmlFor="on-date">Date</Label>
                                                                  <Input id="on-date" type="date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} />
                                                              </div>
                                                          )}
-                                                         {customMode === 'before' && (
+                                                         {draftCustomMode === 'before' && (
                                                              <div className="grid gap-2">
                                                                  <Label htmlFor="before-date">Date</Label>
                                                                  <Input id="before-date" type="date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} />
                                                              </div>
                                                          )}
-                                                         {customMode === 'betweenDates' && (
+                                                         {draftCustomMode === 'betweenDates' && (
                                                              <div className="grid grid-cols-2 gap-3">
                                                                  <div className="grid gap-2">
                                                                      <Label htmlFor="between-from">From</Label>
@@ -366,7 +382,7 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
                                                                  </div>
                                                              </div>
                                                          )}
-                                                         {customMode === 'betweenHours' && (
+                                                         {draftCustomMode === 'betweenHours' && (
                                                              <div className="grid grid-cols-2 gap-3">
                                                                  <div className="grid gap-2">
                                                                      <Label htmlFor="hours-from">From</Label>
@@ -404,13 +420,14 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
                                                              size="sm"
                                                              type="button"
                                                              onClick={() => {
-                                                                 if (customMode === 'since') {
+                                                                 const mode = draftCustomMode ?? customMode;
+                                                                 if (mode === 'since') {
                                                                      setDateFrom(draftDateFrom || undefined);
                                                                      setDateTo(undefined);
                                                                      setTimeFrom(undefined);
                                                                      setTimeTo(undefined);
                                                                  }
-                                                                if (customMode === 'onDate') {
+                                                                if (mode === 'onDate') {
                                                                     const d = draftDateFrom || undefined;
                                                                     setDateFrom(d);
                                                                     setDateTo(d);
@@ -418,25 +435,26 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
                                                                     setTimeFrom('00:00');
                                                                     setTimeTo('23:59');
                                                                 }
-                                                                 if (customMode === 'before') {
+                                                                 if (mode === 'before') {
                                                                      setDateFrom(undefined);
                                                                      setDateTo(draftDateTo || undefined);
                                                                      setTimeFrom(undefined);
                                                                      setTimeTo(undefined);
                                                                  }
-                                                                 if (customMode === 'betweenDates') {
+                                                                 if (mode === 'betweenDates') {
                                                                      setDateFrom(draftDateFrom || undefined);
                                                                      setDateTo(draftDateTo || undefined);
                                                                      setTimeFrom(undefined);
                                                                      setTimeTo(undefined);
                                                                  }
-                                                                 if (customMode === 'betweenHours') {
+                                                                 if (mode === 'betweenHours') {
                                                                      // Apply hours across all dates: do not constrain by date
                                                                      setDateFrom(undefined);
                                                                      setDateTo(undefined);
                                                                      setTimeFrom(draftTimeFrom || '00:00');
                                                                      setTimeTo(draftTimeTo || '23:59');
                                                                  }
+                                                                 setCustomMode(mode);
                                                                  setPeriod('custom');
                                                                  setMoreOpen(false);
                                                              }}

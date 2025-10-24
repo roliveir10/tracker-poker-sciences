@@ -48,26 +48,32 @@ const [rows, setRows] = useState<ImportRow[]>([]);
 	const folderInputRef = useRef<HTMLInputElement | null>(null);
 // estimation globale via poids fichier plutôt que lecture du contenu
 	type FolderEntry = { file: File; path: string };
-	type DirectoryLike = {
-		isFile: boolean;
-		isDirectory: boolean;
+	type FileEntryLike = {
+		isFile: true;
+		isDirectory: false;
 		name: string;
 		file: (callback: (file: File) => void) => void;
+	};
+	type DirEntryLike = {
+		isFile: false;
+		isDirectory: true;
+		name: string;
 		createReader: () => {
-			readEntries: (cb: (entries: DirectoryLike[]) => void) => void;
+			readEntries: (cb: (entries: EntryLike[]) => void) => void;
 		};
 	};
+	type EntryLike = FileEntryLike | DirEntryLike;
 
-	const isDirectoryLike = (entry: unknown): entry is DirectoryLike => {
+	const isFileEntry = (entry: unknown): entry is FileEntryLike => {
 		if (!entry || typeof entry !== 'object') return false;
-		const candidate = entry as Partial<DirectoryLike>;
-		return (
-			typeof candidate.isFile === 'boolean' &&
-			typeof candidate.isDirectory === 'boolean' &&
-			typeof candidate.file === 'function' &&
-			typeof candidate.createReader === 'function' &&
-			typeof candidate.name === 'string'
-		);
+		const e = entry as Partial<FileEntryLike>;
+		return e.isFile === true && e.isDirectory === false && typeof e.name === 'string' && typeof e.file === 'function';
+	};
+
+	const isDirEntry = (entry: unknown): entry is DirEntryLike => {
+		if (!entry || typeof entry !== 'object') return false;
+		const e = entry as Partial<DirEntryLike>;
+		return e.isFile === false && e.isDirectory === true && typeof e.name === 'string' && typeof e.createReader === 'function';
 	};
 
 	async function refresh() {
@@ -196,20 +202,20 @@ useEffect(() => {
 	async function extractFilesFromDataTransfer(dt: DataTransfer): Promise<FolderEntry[]> {
 		const collected: FolderEntry[] = [];
 
-		const traverse = async (entry: DirectoryLike, base: string) => {
-			if (entry.isFile) {
+		const traverse = async (entry: EntryLike, base: string) => {
+			if (isFileEntry(entry)) {
 				await new Promise<void>((resolve) => {
 					entry.file((file) => {
 						collected.push({ file, path: base ? `${base}/${file.name}` : file.name });
 						resolve();
 					});
 				});
-			} else if (entry.isDirectory) {
+			} else if (isDirEntry(entry)) {
 				await new Promise<void>((resolve) => {
 					const reader = entry.createReader();
 					reader.readEntries(async (entries) => {
 						for (const child of entries) {
-							if (isDirectoryLike(child)) await traverse(child, base ? `${base}/${entry.name}` : entry.name);
+							if (isFileEntry(child) || isDirEntry(child)) await traverse(child as EntryLike, base ? `${base}/${entry.name}` : entry.name);
 						}
 						resolve();
 					});
@@ -221,7 +227,12 @@ useEffect(() => {
 			const itemWithEntry = item as DataTransferItem & { webkitGetAsEntry?: () => unknown };
 			if (typeof itemWithEntry.webkitGetAsEntry === 'function') {
 				const entry = itemWithEntry.webkitGetAsEntry();
-				if (isDirectoryLike(entry)) await traverse(entry, '');
+				if (isFileEntry(entry) || isDirEntry(entry)) {
+					await traverse(entry as EntryLike, '');
+				} else {
+					const fallbackFile = item.getAsFile?.();
+					if (fallbackFile) collected.push({ file: fallbackFile, path: fallbackFile.name });
+				}
 			} else {
 				const fallbackFile = item.getAsFile?.();
 				if (fallbackFile) collected.push({ file: fallbackFile, path: fallbackFile.name });
