@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,6 +15,25 @@ import {
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const [ms, setMs] = useState<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const publicKey = process.env.NEXT_PUBLIC_MEMBERSTACK_PUBLIC_KEY;
+        if (!publicKey) return;
+        const mod = await import("@memberstack/dom");
+        const sdk = await mod.default.init({ publicKey });
+        if (!cancelled) setMs(sdk);
+      } catch {
+        // silent
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const items = [
     { label: "Home", href: "/", icon: Home },
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -33,6 +53,12 @@ export function SidebarNav() {
           <Link
             key={href}
             href={href}
+            onClick={(e) => {
+              if (href === "/signin" && ms) {
+                e.preventDefault();
+                ms.openModal({ type: "LOGIN" }).catch(() => {});
+              }
+            }}
             className={cn(
               buttonVariants({
                 variant: "ghost",

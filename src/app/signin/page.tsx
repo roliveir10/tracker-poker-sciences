@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import {
 	Card,
@@ -16,6 +17,53 @@ import { Label } from '@/components/ui/label';
 export default function SignInPage() {
 	const [email, setEmail] = useState('');
 	const [status, setStatus] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Si déjà authentifié côté app, redirige rapidement vers le dashboard
+        const r = await fetch('/api/session', { credentials: 'include' });
+        const j = await r.json().catch(() => null);
+        if (!cancelled && j?.authenticated) {
+          router.replace('/dashboard');
+          return;
+        }
+
+        const publicKey = process.env.NEXT_PUBLIC_MEMBERSTACK_PUBLIC_KEY;
+        if (!publicKey) return; // Pas de clé → on laisse le fallback email
+        const mod = await import('@memberstack/dom');
+        const ms = await mod.default.init({ publicKey });
+
+        // Lorsqu'un membre se connecte, créer la session locale et rediriger
+        ms.onAuthChange(async (member: any) => {
+          if (cancelled) return;
+          try {
+            const memberId = typeof member?.data?.id === 'string' ? member.data.id : undefined;
+            if (!memberId) return;
+            const res = await fetch('/api/auth/memberstack', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ memberId }),
+            });
+            if (res.ok) router.replace('/dashboard');
+          } catch {
+            // ignore
+          }
+        });
+
+        // Ouvre le modal de connexion automatiquement
+        await ms.openModal({ type: 'LOGIN' });
+      } catch {
+        // silencieux, on garde le fallback email
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
 	async function submit(event: React.FormEvent) {
 		event.preventDefault();
@@ -36,6 +84,21 @@ export default function SignInPage() {
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={submit} className="space-y-4">
+						<Button
+							type="button"
+							className="w-full"
+							onClick={async () => {
+								try {
+									const publicKey = process.env.NEXT_PUBLIC_MEMBERSTACK_PUBLIC_KEY;
+									if (!publicKey) return;
+									const mod = await import('@memberstack/dom');
+									const ms = await mod.default.init({ publicKey });
+									await ms.openModal({ type: 'LOGIN' });
+								} catch {}
+							}}
+						>
+							Se connecter avec Memberstack
+						</Button>
 						<div className="space-y-2">
 							<Label htmlFor="email">Email address</Label>
 							<Input
