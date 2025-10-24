@@ -62,6 +62,9 @@ CREATE TABLE "Import" (
     "status" "ImportStatus" NOT NULL DEFAULT 'queued',
     "fileKey" TEXT NOT NULL,
     "numHands" INTEGER NOT NULL DEFAULT 0,
+    "numImported" INTEGER NOT NULL DEFAULT 0,
+    "numDuplicates" INTEGER NOT NULL DEFAULT 0,
+    "numInvalid" INTEGER NOT NULL DEFAULT 0,
     "error" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -107,6 +110,10 @@ CREATE TABLE "Hand" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "totalPotCents" INTEGER,
     "mainPotCents" INTEGER,
+    "evRealizedCents" INTEGER,
+    "evAllInAdjCents" INTEGER,
+    "evSamples" INTEGER NOT NULL DEFAULT 0,
+    "evUpdatedAt" TIMESTAMP(3),
 
     CONSTRAINT "Hand_pkey" PRIMARY KEY ("id")
 );
@@ -181,6 +188,9 @@ CREATE UNIQUE INDEX "Tournament_userId_gameId_key" ON "Tournament"("userId", "ga
 CREATE INDEX "Hand_tournamentId_idx" ON "Hand"("tournamentId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Hand_tournamentId_handNo_key" ON "Hand"("tournamentId", "handNo");
+
+-- CreateIndex
 CREATE INDEX "Action_handId_idx" ON "Action"("handId");
 
 -- CreateIndex
@@ -215,3 +225,4 @@ ALTER TABLE "Action" ADD CONSTRAINT "Action_handId_fkey" FOREIGN KEY ("handId") 
 
 -- AddForeignKey
 ALTER TABLE "HandPlayer" ADD CONSTRAINT "HandPlayer_handId_fkey" FOREIGN KEY ("handId") REFERENCES "Hand"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
