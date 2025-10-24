@@ -36,8 +36,17 @@ export default function AutoSso() {
             credentials: 'include',
             body: JSON.stringify({ memberId: currentId }),
           });
-          if (!cancelled && res.ok) {
-            window.location.href = '/';
+          if (cancelled) return;
+          if (res.ok) { window.location.href = '/'; return; }
+          // Si l'amont renvoie 502, session Memberstack potentiellement d'un autre environnement → déconnexion douce
+          if (res.status === 502) {
+            try {
+              const mod2 = await import('@memberstack/dom');
+              const ms2 = await mod2.default.init({ publicKey });
+              if (ms2 && (ms2 as { logout?: () => Promise<unknown> }).logout) {
+                await (ms2 as { logout: () => Promise<unknown> }).logout();
+              }
+            } catch {}
             return;
           }
         }
@@ -54,8 +63,14 @@ export default function AutoSso() {
               credentials: 'include',
               body: JSON.stringify({ memberId }),
             });
-            if (!cancelled && resp.ok) {
-              window.location.href = '/';
+            if (cancelled) return;
+            if (resp.ok) { window.location.href = '/'; return; }
+            if (resp.status === 502) {
+              try {
+                if ((ms as unknown as { logout?: () => Promise<unknown> }).logout) {
+                  await (ms as unknown as { logout: () => Promise<unknown> }).logout();
+                }
+              } catch {}
             }
           } catch {
             // ignore
