@@ -26,17 +26,41 @@ export default function AutoSso() {
         // Charge Memberstack uniquement côté client pour éviter toute évaluation SSR
         const mod = await import('@memberstack/dom');
         const ms = await mod.default.init({ publicKey });
-        const member = await ms.getCurrentMember();
-        const memberId = typeof member?.data?.id === 'string' ? member.data.id : undefined;
-        if (!memberId) return;
-        const res = await fetch('/api/auth/memberstack', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ memberId }),
+        // 1) SSO silencieux si déjà connecté côté Memberstack
+        const current = await ms.getCurrentMember();
+        const currentId = typeof current?.data?.id === 'string' ? current.data.id : undefined;
+        if (currentId) {
+          const res = await fetch('/api/auth/memberstack', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ memberId: currentId }),
+          });
+          if (!cancelled && res.ok) {
+            window.location.href = '/';
+            return;
+          }
+        }
+        // 2) Sinon, écoute l'auth change pour déclencher le SSO après login
+        type MemberstackMemberEvent = { data?: { id?: string | null } | null };
+        ms.onAuthChange(async (member: MemberstackMemberEvent) => {
+          if (cancelled) return;
+          try {
+            const memberId = typeof member?.data?.id === 'string' ? member.data.id : undefined;
+            if (!memberId) return;
+            const resp = await fetch('/api/auth/memberstack', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ memberId }),
+            });
+            if (!cancelled && resp.ok) {
+              window.location.href = '/';
+            }
+          } catch {
+            // ignore
+          }
         });
-        if (cancelled) return;
-        if (res.ok) window.location.reload();
       } catch {
         // ignore silent
       }

@@ -52,7 +52,7 @@ export default function SignInPage() {
               credentials: 'include',
               body: JSON.stringify({ memberId }),
             });
-            if (res.ok) router.replace('/dashboard');
+            if (res.ok) router.replace('/');
           } catch {
             // ignore
           }
@@ -72,7 +72,7 @@ export default function SignInPage() {
 	async function submit(event: React.FormEvent) {
 		event.preventDefault();
 		setStatus('Sending magic link...');
-		const result = await signIn('email', { email, callbackUrl: '/dashboard', redirect: false });
+		const result = await signIn('email', { email, callbackUrl: '/', redirect: false });
 		if (result?.ok) setStatus('Check your inbox and click the link.');
 		else setStatus('Unable to send the link. Check EMAIL_SERVER.');
 	}
