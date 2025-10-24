@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   Fragment,
+  useCallback,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 // Remove strict Theme typing to avoid version mismatch issues
@@ -107,6 +108,34 @@ const SERIES_COLORS: Record<string, string> = {
   "Net Expected Chips Won": "#facc15",
 };
 
+const SERIES_STORAGE_KEY = 'ev-curve:series:v1';
+
+const safeLocalStorage = () => {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return null;
+  return window.localStorage;
+};
+
+const loadSeriesSettings = () => {
+  try {
+    const storage = safeLocalStorage();
+    const raw = storage ? storage.getItem(SERIES_STORAGE_KEY) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Record<string, boolean>> | null;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const persistSeriesSettings = (value: Record<string, boolean>) => {
+  try {
+    const storage = safeLocalStorage();
+    if (storage) storage.setItem(SERIES_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // ignore errors
+  }
+};
+
 export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, hoursTo, buyIns, position, huRoles, m3Roles, effMinBB, effMaxBB, phase }: { className?: string; period?: 'today' | 'yesterday' | 'this-week' | 'this-month'; dateFrom?: string; dateTo?: string; hoursFrom?: string; hoursTo?: string; buyIns?: number[]; position?: 'hu' | '3max'; huRoles?: Array<'sb' | 'bb'>; m3Roles?: Array<'bu' | 'sb' | 'bb'>; effMinBB?: number; effMaxBB?: number; phase?: 'preflop' | 'postflop' }) {
   const [points, setPoints] = useState<CurvePoint[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -119,23 +148,11 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
   const [isHoverPinned, setIsHoverPinned] = useState<boolean>(false);
   const [measureStartY, setMeasureStartY] = useState<number | null>(null);
   const [measureCurrentY, setMeasureCurrentY] = useState<number | null>(null);
-  const yScaleRef = useRef<any>(null);
-  const innerHeightRef = useRef<number>(0);
-  const xScaleRef = useRef<any>(null);
-  const innerWidthRef = useRef<number>(0);
-  const SERIES_STORAGE_KEY = 'ev-curve:series:v1';
-  const readSavedSeries = () => {
-    try {
-      if (typeof window === 'undefined') return null;
-      const raw = window.localStorage.getItem(SERIES_STORAGE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as Partial<Record<string, boolean>> | null;
-      return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch {
-      return null;
-    }
-  };
-  const saved = readSavedSeries();
+const yScaleRef = useRef<((value: number) => number) | null>(null);
+const innerHeightRef = useRef<number>(0);
+const xScaleRef = useRef<((value: number) => number) | null>(null);
+const innerWidthRef = useRef<number>(0);
+  const saved = loadSeriesSettings();
   const [enabledSeries, setEnabledSeries] = useState<Record<string, boolean>>(() => ({
     "Chips Won": saved?.["Chips Won"] ?? true,
     "Chips Won With Showdown": saved?.["Chips Won With Showdown"] ?? false,
@@ -143,13 +160,7 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
     "Net Expected Chips Won": saved?.["Net Expected Chips Won"] ?? true,
   }));
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(SERIES_STORAGE_KEY, JSON.stringify(enabledSeries));
-      }
-    } catch {
-      // ignore
-    }
+    persistSeriesSettings(enabledSeries);
   }, [enabledSeries]);
 
   const handleMouseMove = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -216,48 +227,115 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
 
   const CLIENT_COMPUTE = process.env.NEXT_PUBLIC_EV_CLIENT_COMPUTE !== '0';
 
+  const normalizeCurve = useCallback((curve: CurvePoint[]): CurvePoint[] => {
+    return curve.map((p) => {
+      const safeActual = Number.isFinite(p.cumActual) ? p.cumActual : 0;
+      const safeAdj = Number.isFinite(p.cumAdj) ? p.cumAdj : safeActual;
+      return { ...p, cumActual: safeActual, cumAdj: safeAdj };
+    });
+  }, []);
+
+  const downsampleCurve = useCallback((curve: CurvePoint[], threshold: number): CurvePoint[] => {
+    const data = normalizeCurve(curve);
+    const n = data.length;
+    if (threshold >= n || threshold <= 0) return data;
+    // Largest-Triangle-Three-Buckets based on cumAdj as primary Y
+    const sampled: CurvePoint[] = [];
+    const bucketSize = (n - 2) / (threshold - 2);
+    let a = 0; // always add the first point
+    sampled.push(data[a]);
+
+    for (let i = 0; i < threshold - 2; i++) {
+      const rangeStart = Math.floor((i + 1) * bucketSize) + 1;
+      const rangeEnd = Math.floor((i + 2) * bucketSize) + 1;
+      const rangeLeft = Math.min(Math.max(rangeStart, 1), n - 1);
+      const rangeRight = Math.min(Math.max(rangeEnd, 1), n - 1);
+
+      // Compute average for next bucket
+      let avgX = 0;
+      let avgY = 0;
+      const avgRangeStart = rangeLeft;
+      const avgRangeEnd = rangeRight;
+      const avgRangeLength = Math.max(1, avgRangeEnd - avgRangeStart);
+      for (let j = avgRangeStart; j < avgRangeEnd; j++) {
+        avgX += j;
+        avgY += data[j].cumAdj;
+      }
+      avgX /= avgRangeLength;
+      avgY /= avgRangeLength;
+
+      // Point a
+      const aX = a;
+      const aY = data[a].cumAdj;
+
+      // Find point in this bucket with the largest triangle area
+      const rangeCurrStart = Math.floor(i * bucketSize) + 1;
+      const rangeCurrEnd = Math.floor((i + 1) * bucketSize) + 1;
+      const currLeft = Math.min(Math.max(rangeCurrStart, 1), n - 1);
+      const currRight = Math.min(Math.max(rangeCurrEnd, 1), n - 1);
+
+      let maxArea = -1;
+      let nextA = currLeft;
+      for (let j = currLeft; j < currRight; j++) {
+        const bX = j;
+        const bY = data[j].cumAdj;
+        const area = Math.abs((aX - avgX) * (bY - aY) - (aY - avgY) * (bX - aX));
+        if (area > maxArea) {
+          maxArea = area;
+          nextA = j;
+        }
+      }
+      sampled.push(data[nextA]);
+      a = nextA;
+    }
+
+    // Always add last point
+    sampled.push(data[n - 1]);
+    return sampled;
+  }, [normalizeCurve]);
+
   useEffect(() => {
     const controller = new AbortController();
     setIsLoading(true);
-    // Vider la courbe pendant le chargement des nouveaux filtres
     setPoints([]);
     setError(null);
 
     const loadDataServer = async () => {
       try {
-        const qs = new URLSearchParams();
-        if (period) qs.set('period', period);
-        if (dateFrom) qs.set('dateFrom', dateFrom);
-        if (dateTo) qs.set('dateTo', dateTo);
-        if (hoursFrom) qs.set('hoursFrom', hoursFrom);
-        if (hoursTo) qs.set('hoursTo', hoursTo);
-        if (Array.isArray(buyIns)) for (const b of buyIns) qs.append('buyIns', String(b));
-        if (position) qs.set('position', position);
-        if (Array.isArray(huRoles)) for (const r of huRoles) qs.append('huRole', r);
-        if (Array.isArray(m3Roles)) for (const r of m3Roles) qs.append('m3Role', r);
-        if (effMinBB != null) qs.set('effMin', String(effMinBB));
-        if (effMaxBB != null) qs.set('effMax', String(effMaxBB));
-        if (phase) qs.set('phase', phase);
-        const url = `/api/ev-curve${qs.size ? `?${qs.toString()}` : ''}`;
-        const response = await fetch(url, {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        if (!response.ok) throw new Error("failed");
-        const payload: ApiResponse = await response.json();
+        const params = new URLSearchParams();
+        if (period) {
+          params.set('period', period);
+        }
+        if (period == null || (period as string) === 'custom') {
+          if (dateFrom) params.set('dateFrom', dateFrom);
+          if (dateTo) params.set('dateTo', dateTo);
+          if (hoursFrom) params.set('hoursFrom', hoursFrom);
+          if (hoursTo) params.set('hoursTo', hoursTo);
+        }
+        if (Array.isArray(buyIns)) for (const b of buyIns) params.append('buyIns', String(b));
+        if (position) params.set('position', position);
+        if (Array.isArray(huRoles)) for (const r of huRoles) params.append('huRole', r);
+        if (Array.isArray(m3Roles)) for (const r of m3Roles) params.append('m3Role', r);
+        if (effMinBB != null) params.set('effMin', String(effMinBB));
+        if (effMaxBB != null) params.set('effMax', String(effMaxBB));
+        if (phase) params.set('phase', phase);
+
+        const res = await fetch(`/api/ev-curve${params.size ? `?${params.toString()}` : ''}`, { signal: controller.signal, cache: 'no-store' });
+        if (!res.ok) throw new Error('failed');
+        const payload: ApiResponse = await res.json();
         const raw = payload.points ?? [];
         setPoints(downsampleCurve(raw, 4000));
         setError(null);
         setIsLoading(false);
-      } catch (err) {
+      } catch (_err) {
         if (!controller.signal.aborted) {
-          setError("Unable to load the EV chart.");
+          setError('Unable to load EV curve.');
           setIsLoading(false);
         }
       }
     };
 
-        const loadDataClient = async () => {
+    const loadDataClient = async () => {
       try {
         let bootSrvPts: CurvePoint[] | null = null;
         // Affichage initial immédiat via serveur (rapide si EV en cache)
@@ -448,15 +526,10 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
 
         setError(null);
         setIsLoading(false);
-      } catch (e) {
+      } catch (_err) {
         if (!controller.signal.aborted) {
-          // Fallback to server compute if worker/client compute fails
-          try {
-            await loadDataServer();
-          } catch {
-            setError('Unable to compute EV locally.');
-            setIsLoading(false);
-          }
+          setError('Unable to compute EV locally.');
+          setIsLoading(false);
         }
       }
     };
@@ -464,7 +537,7 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
     if (CLIENT_COMPUTE) void loadDataClient();
     else void loadDataServer();
     return () => controller.abort();
-  }, [period, dateFrom, dateTo, hoursFrom, hoursTo, CLIENT_COMPUTE, Array.isArray(buyIns) ? buyIns.join(',') : '', position ?? '', Array.isArray(huRoles) ? huRoles.join(',') : '', Array.isArray(m3Roles) ? m3Roles.join(',') : '', effMinBB ?? '', effMaxBB ?? '', phase ?? '']);
+  }, [CLIENT_COMPUTE, period, dateFrom, dateTo, hoursFrom, hoursTo, buyIns, position, huRoles, m3Roles, effMinBB, effMaxBB, phase, downsampleCurve]);
 
   const chartSeries = useMemo(() => {
     const base = [{ cumActual: 0, cumAdj: 0, cumShowdown: 0, cumNoShowdown: 0 }, ...points];
@@ -557,72 +630,13 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
     [],
   );
 
-  function normalizeCurve(curve: CurvePoint[]): CurvePoint[] {
-    return curve.map((p) => {
-      const safeActual = Number.isFinite(p.cumActual) ? p.cumActual : 0;
-      const safeAdj = Number.isFinite(p.cumAdj) ? p.cumAdj : safeActual;
-      return { ...p, cumActual: safeActual, cumAdj: safeAdj };
-    });
-  }
-
-  function downsampleCurve(curve: CurvePoint[], threshold: number): CurvePoint[] {
-    const data = normalizeCurve(curve);
-    const n = data.length;
-    if (threshold >= n || threshold <= 0) return data;
-    // Largest-Triangle-Three-Buckets based on cumAdj as primary Y
-    const sampled: CurvePoint[] = [];
-    const bucketSize = (n - 2) / (threshold - 2);
-    let a = 0; // always add the first point
-    sampled.push(data[a]);
-
-    for (let i = 0; i < threshold - 2; i++) {
-      const rangeStart = Math.floor((i + 1) * bucketSize) + 1;
-      const rangeEnd = Math.floor((i + 2) * bucketSize) + 1;
-      const rangeLeft = Math.min(Math.max(rangeStart, 1), n - 1);
-      const rangeRight = Math.min(Math.max(rangeEnd, 1), n - 1);
-
-      // Compute average for next bucket
-      let avgX = 0;
-      let avgY = 0;
-      const avgRangeStart = rangeLeft;
-      const avgRangeEnd = rangeRight;
-      const avgRangeLength = Math.max(1, avgRangeEnd - avgRangeStart);
-      for (let j = avgRangeStart; j < avgRangeEnd; j++) {
-        avgX += j;
-        avgY += data[j].cumAdj;
-      }
-      avgX /= avgRangeLength;
-      avgY /= avgRangeLength;
-
-      // Point a
-      const aX = a;
-      const aY = data[a].cumAdj;
-
-      // Find point in this bucket with the largest triangle area
-      const rangeCurrStart = Math.floor(i * bucketSize) + 1;
-      const rangeCurrEnd = Math.floor((i + 1) * bucketSize) + 1;
-      const currLeft = Math.min(Math.max(rangeCurrStart, 1), n - 1);
-      const currRight = Math.min(Math.max(rangeCurrEnd, 1), n - 1);
-
-      let maxArea = -1;
-      let nextA = currLeft;
-      for (let j = currLeft; j < currRight; j++) {
-        const bX = j;
-        const bY = data[j].cumAdj;
-        const area = Math.abs((aX - avgX) * (bY - aY) - (aY - avgY) * (bX - aX));
-        if (area > maxArea) {
-          maxArea = area;
-          nextA = j;
-        }
-      }
-      sampled.push(data[nextA]);
-      a = nextA;
-    }
-
-    // Always add last point
-    sampled.push(data[n - 1]);
-    return sampled;
-  }
+  const LayerCapture = ({ innerHeight, innerWidth, yScale, xScale }: { innerHeight: number; innerWidth: number; yScale: (value: number) => number; xScale: (value: number) => number }) => {
+    yScaleRef.current = yScale;
+    xScaleRef.current = xScale;
+    innerHeightRef.current = innerHeight;
+    innerWidthRef.current = innerWidth;
+    return null;
+  };
 
   return (
     <div className={cn("flex h-full w-full flex-col gap-4", className)}>
@@ -667,13 +681,7 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
                     "slices",
                     "mesh",
                     "legends",
-                    ((props: any) => {
-                      yScaleRef.current = props.yScale;
-                      innerHeightRef.current = props.innerHeight;
-                      xScaleRef.current = props.xScale;
-                      innerWidthRef.current = props.innerWidth;
-                      return null;
-                    }) as any,
+                    LayerCapture,
                   ]}
                 axisBottom={{
                   legend: "Hands Played",
@@ -702,8 +710,6 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
                 enableSlices={false}
                 enableCrosshair={false}
                 enableTouchCrosshair={false}
-                sliceTooltip={() => null}
-                tooltip={() => null}
                 animate={false}
               />
               ) : (
@@ -719,9 +725,18 @@ export function EvCurveChart({ className, period, dateFrom, dateTo, hoursFrom, h
                   const toValue = (py: number) => {
                     const yScale = yScaleRef.current;
                     const innerH = innerHeightRef.current || 0;
-                    if (!yScale || typeof yScale.invert !== "function" || innerH <= 0) return 0;
+                    if (!yScale || innerH <= 0) return 0;
                     const innerY = clampValue(py - CHART_MARGIN.top, 0, innerH);
-                    return yScale.invert(innerY);
+                    const scaleWithInvert = yScale as unknown as { invert?: (value: number) => number; domain?: () => [number, number]; range?: () => [number, number] };
+                    if (typeof scaleWithInvert.invert === "function") {
+                      return scaleWithInvert.invert(innerY);
+                    }
+                    const domain = scaleWithInvert.domain ? scaleWithInvert.domain() : [0, 0];
+                    const range = scaleWithInvert.range ? scaleWithInvert.range() : [0, innerH];
+                    const [d0, d1] = domain as [number, number];
+                    const [r0, r1] = range as [number, number];
+                    const t = r1 === r0 ? 0 : (innerY - r0) / (r1 - r0);
+                    return d0 + t * (d1 - d0);
                   };
                   const deltaChips = Math.round(Math.abs(toValue(bottom) - toValue(top)));
                   const labelY = top + height / 2;

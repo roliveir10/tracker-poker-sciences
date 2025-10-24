@@ -25,6 +25,33 @@ const chartTheme = {
 
 const integerFormatter = new Intl.NumberFormat("en-US");
 const euroFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "EUR" });
+const SERIES_STORAGE_KEY = 'bankroll-curve:series:v1';
+
+const safeLocalStorage = () => {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return null;
+  return window.localStorage;
+};
+
+const loadBankrollSettings = () => {
+  try {
+    const storage = safeLocalStorage();
+    const raw = storage ? storage.getItem(SERIES_STORAGE_KEY) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Record<string, boolean>> | null;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const persistBankrollSettings = (value: Record<string, boolean>) => {
+  try {
+    const storage = safeLocalStorage();
+    if (storage) storage.setItem(SERIES_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+};
 
 export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursFrom, hoursTo, buyIns }: { className?: string; period?: 'today' | 'yesterday' | 'this-week' | 'this-month'; dateFrom?: string; dateTo?: string; hoursFrom?: string; hoursTo?: string; buyIns?: number[] }) {
   const [points, setPoints] = useState<Point[]>([]);
@@ -33,35 +60,19 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null);
   const [isHoverPinned, setIsHoverPinned] = useState<boolean>(false);
-  const yScaleRef = useRef<any>(null);
-  const xScaleRef = useRef<any>(null);
+  const yScaleRef = useRef<((value: number) => number) | null>(null);
+  const xScaleRef = useRef<((value: number) => number) | null>(null);
   const innerHeightRef = useRef<number>(0);
   const innerWidthRef = useRef<number>(0);
   const [measureStartY, setMeasureStartY] = useState<number | null>(null);
   const [measureCurrentY, setMeasureCurrentY] = useState<number | null>(null);
-  const SERIES_STORAGE_KEY = 'bankroll-curve:series:v1';
-  const readSavedSeries = () => {
-    try {
-      if (typeof window === 'undefined') return null;
-      const raw = window.localStorage.getItem(SERIES_STORAGE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as Partial<Record<string, boolean>> | null;
-      return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch {
-      return null;
-    }
-  };
-  const saved = readSavedSeries();
+  const saved = loadBankrollSettings();
   const [enabledSeries, setEnabledSeries] = useState<Record<string, boolean>>(() => ({
     '$ Won': saved?.['$ Won'] ?? true,
     'Net Expected $ Won': saved?.['Net Expected $ Won'] ?? true,
   }));
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') window.localStorage.setItem(SERIES_STORAGE_KEY, JSON.stringify(enabledSeries));
-    } catch {
-      // ignore
-    }
+    persistBankrollSettings(enabledSeries);
   }, [enabledSeries]);
 
   useEffect(() => {
@@ -84,7 +95,7 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
         const payload: ApiResponse = await res.json();
         setPoints((payload.points ?? []).map((p) => ({ ...p })));
         setIsLoading(false);
-      } catch (e) {
+      } catch {
         if (!controller.signal.aborted) {
           setError('Unable to load bankroll curve.');
           setIsLoading(false);
@@ -92,7 +103,7 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
       }
     })();
     return () => controller.abort();
-  }, [period, dateFrom, dateTo, hoursFrom, hoursTo, Array.isArray(buyIns) ? buyIns.join(',') : '']);
+  }, [period, dateFrom, dateTo, hoursFrom, hoursTo, buyIns]);
 
   const serie = useMemo(() => {
     const base = [{ cumProfitCents: 0, cumExpectedCents: 0 }, ...points];
@@ -186,6 +197,14 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
     return () => window.removeEventListener('mouseup', onUp);
   }, [measureStartY, isHoverPinned]);
 
+  const LayerCapture = ({ innerHeight, innerWidth, yScale, xScale }: { innerHeight: number; innerWidth: number; yScale: (value: number) => number; xScale: (value: number) => number }) => {
+    yScaleRef.current = yScale;
+    xScaleRef.current = xScale;
+    innerHeightRef.current = innerHeight;
+    innerWidthRef.current = innerWidth;
+    return null;
+  };
+
   return (
     <div className={cn("flex h-full w-full flex-col gap-4", className)}>
       {error && (
@@ -203,8 +222,8 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
             >
               {chartSeries.length > 0 ? (
               <ResponsiveLine
-              data={chartSeries as any}
-                theme={chartTheme as any}
+              data={chartSeries}
+                theme={chartTheme}
                 margin={CHART_MARGIN}
                 yScale={{ type: 'linear', min: 'auto', max: 'auto', stacked: false, reverse: false }}
                 layers={[
@@ -217,13 +236,7 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
                   'slices',
                   'mesh',
                   'legends',
-                  ((props: any) => {
-                    yScaleRef.current = props.yScale;
-                    xScaleRef.current = props.xScale;
-                    innerHeightRef.current = props.innerHeight;
-                    innerWidthRef.current = props.innerWidth;
-                    return null;
-                  }) as any,
+                  LayerCapture,
                 ]}
                 axisBottom={{ legend: 'Tournaments', legendOffset: 40, tickValues: xTickValues, format: (v) => integerFormatter.format(Number(v)) }}
                 axisLeft={null}
@@ -237,6 +250,24 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
                 enableSlices={false}
                 enableCrosshair={false}
                 animate={false}
+                tooltip={({ point }) => {
+                  const rawSeriesId = (point as { seriesId?: string | number }).seriesId;
+                  const serieId = String(rawSeriesId ?? point.id);
+                  const y = typeof point.data.y === 'number' ? point.data.y : Number(point.data.y);
+                  const tournamentIdx = typeof point.data.x === 'number' ? point.data.x : Number(point.data.x);
+                  const source = points[tournamentIdx - 1] ?? null;
+                  return (
+                    <div className="rounded-md border border-border/70 bg-card px-3 py-2 text-xs text-muted-foreground">
+                      <div className="font-semibold text-primary">{source?.tournamentId}</div>
+                      <div className="text-muted-foreground">
+                        {source?.startedAt ? new Date(source.startedAt).toLocaleDateString() : 'N/A'}
+                      </div>
+                      <div className="font-semibold text-primary">
+                        {serieId === '$ Won' ? euroFormatter.format(y) : euroFormatter.format(y)}
+                      </div>
+                    </div>
+                  );
+                }}
               />) : (
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">Enable at least one series to display the chart.</div>
               )}
@@ -248,9 +279,18 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
                   const toValue = (py: number) => {
                     const yScale = yScaleRef.current;
                     const innerH = innerHeightRef.current || 0;
-                    if (!yScale || typeof yScale.invert !== 'function' || innerH <= 0) return 0;
+                    if (!yScale || innerH <= 0) return 0;
                     const innerY = Math.min(Math.max(py - CHART_MARGIN.top, 0), innerH);
-                    return yScale.invert(innerY);
+                    const scaleWithInvert = yScale as unknown as { invert?: (value: number) => number; domain?: () => [number, number]; range?: () => [number, number] };
+                    if (typeof scaleWithInvert.invert === 'function') {
+                      return scaleWithInvert.invert(innerY);
+                    }
+                    const domain = scaleWithInvert.domain ? scaleWithInvert.domain() : [0, 0];
+                    const range = scaleWithInvert.range ? scaleWithInvert.range() : [0, innerH];
+                    const [d0, d1] = domain as [number, number];
+                    const [r0, r1] = range as [number, number];
+                    const t = r1 === r0 ? 0 : (innerY - r0) / (r1 - r0);
+                    return d0 + t * (d1 - d0);
                   };
                   const delta = Math.abs(toValue(bottom) - toValue(top));
                   const labelY = top + height / 2;
@@ -293,7 +333,7 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
                     const xScale = xScaleRef.current;
                     const innerW = innerWidthRef.current || 0;
                     const innerH = innerHeightRef.current || 0;
-                    if (!yScale || innerW <= 0 || innerH <= 0) return null;
+                    if (!yScale || !xScale || innerW <= 0 || innerH <= 0) return null;
 
                     const innerX = Math.min(Math.max(hoverPosition.x - CHART_MARGIN.left, 0), innerW);
                     const ratio = innerW > 0 ? innerX / innerW : 0;
@@ -302,14 +342,17 @@ export function BankrollCurveChart({ className, period, dateFrom, dateTo, hoursF
 
                     const items: Array<{ id: string; value: number; px: number; py: number; color: string }> = [];
                     for (const s of chartSeries) {
-                      const d = (s.data[idx] as any) || null;
-                      if (!d) continue;
-                      const value = Number(d.y) || 0;
+                      const dataPoint = s.data[idx];
+                      if (!dataPoint) continue;
+                      const xValue = typeof dataPoint.x === 'number' ? dataPoint.x : Number(dataPoint.x);
+                      const yValue = typeof dataPoint.y === 'number' ? dataPoint.y : Number(dataPoint.y);
+                      if (!Number.isFinite(xValue) || !Number.isFinite(yValue)) continue;
+                      const value = yValue;
                       const yPxInner = yScale(value);
                       const py = CHART_MARGIN.top + yPxInner;
                       let px: number;
                       try {
-                        const sx = xScale(d.x);
+                        const sx = typeof xScale === 'function' ? xScale(xValue) : null;
                         px = CHART_MARGIN.left + (typeof sx === 'number' ? sx : innerX);
                       } catch {
                         px = CHART_MARGIN.left + innerX;

@@ -112,7 +112,26 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  let filtered = rows;
+type HandRow = {
+  id: string;
+  handNo: string | null;
+  playedAt: Date | null;
+  actions: Array<{
+    street: 'preflop' | 'flop' | 'turn' | 'river';
+    seat: number | null;
+    sizeCents: number | null;
+  }>;
+  players: Array<{
+    seat: number;
+    isHero: boolean | null;
+    startingStackCents: number | null;
+  }>;
+  heroSeat: number | null;
+  sbCents: number | null;
+  bbCents: number | null;
+};
+
+  let filtered: HandRow[] = rows as HandRow[];
   if (timeFilter) {
     const parseHhMm = (s: string) => {
       const [hh, mm] = s.split(':').map((v) => parseInt(v, 10));
@@ -125,19 +144,19 @@ export async function GET(req: NextRequest) {
       if (fromMin <= toMin) return minutes >= fromMin && minutes < toMin; // [from, to)
       return minutes >= fromMin || minutes < toMin; // wrap-around
     };
-    filtered = rows.filter((r) => (r.playedAt ? inRange(r.playedAt) : false));
+    filtered = filtered.filter((r) => (r.playedAt ? inRange(r.playedAt) : false));
   }
 
   if (positionParam === 'hu' || positionParam === '3max') {
     const wantCount = positionParam === 'hu' ? 2 : 3;
-    filtered = filtered.filter((r: any) => Array.isArray(r.players) ? r.players.length === wantCount : false);
+    filtered = filtered.filter((r) => Array.isArray(r.players) ? r.players.length === wantCount : false);
     // Sub-role filtering using preflop action order
     if (positionParam === 'hu' && (huRolesParam.includes('sb') || huRolesParam.includes('bb'))) {
-      filtered = filtered.filter((r: any) => {
-        const heroSeat = (r.players?.find((p: any) => p.isHero)?.seat) ?? r.heroSeat ?? null;
+      filtered = filtered.filter((r) => {
+        const heroSeat = (r.players?.find((p) => p.isHero)?.seat) ?? r.heroSeat ?? null;
         if (heroSeat == null) return false;
-        const pre = (r.actions || []).filter((a: any) => a.street === 'preflop' && a.seat != null);
-        const sbSeat = r.sbCents != null ? (pre.find((a: any) => a.sizeCents === r.sbCents)?.seat ?? null) : null;
+        const pre = (r.actions || []).filter((a) => a.street === 'preflop' && a.seat != null);
+        const sbSeat = r.sbCents != null ? (pre.find((a) => a.sizeCents === r.sbCents)?.seat ?? null) : null;
         if (sbSeat == null) return false;
         const heroIsSb = sbSeat === heroSeat;
         if (heroIsSb && huRolesParam.includes('sb')) return true;
@@ -146,15 +165,15 @@ export async function GET(req: NextRequest) {
       });
     }
     if (positionParam === '3max' && (m3RolesParam.includes('bu') || m3RolesParam.includes('sb') || m3RolesParam.includes('bb'))) {
-      filtered = filtered.filter((r: any) => {
-        const heroSeat = (r.players?.find((p: any) => p.isHero)?.seat) ?? r.heroSeat ?? null;
+      filtered = filtered.filter((r) => {
+        const heroSeat = (r.players?.find((p) => p.isHero)?.seat) ?? r.heroSeat ?? null;
         if (heroSeat == null) return false;
-        const pre = (r.actions || []).filter((a: any) => a.street === 'preflop' && a.seat != null);
-        const sbSeat = r.sbCents != null ? (pre.find((a: any) => a.sizeCents === r.sbCents)?.seat ?? null) : null;
-        const bbSeat = r.bbCents != null ? (pre.find((a: any) => a.sizeCents === r.bbCents)?.seat ?? null) : null;
+        const pre = (r.actions || []).filter((a) => a.street === 'preflop' && a.seat != null);
+        const sbSeat = r.sbCents != null ? (pre.find((a) => a.sizeCents === r.sbCents)?.seat ?? null) : null;
+        const bbSeat = r.bbCents != null ? (pre.find((a) => a.sizeCents === r.bbCents)?.seat ?? null) : null;
         if (sbSeat == null || bbSeat == null) return false;
-        const seats = new Set((r.players || []).map((p: any) => p.seat));
-        const btnSeat = Array.from(seats).find((s: any) => s !== sbSeat && s !== bbSeat) ?? null;
+        const seats = new Set((r.players || []).map((p) => p.seat));
+        const btnSeat = Array.from(seats).find((s) => s !== sbSeat && s !== bbSeat) ?? null;
         let role: 'bu' | 'sb' | 'bb' | null = null;
         if (heroSeat === btnSeat) role = 'bu';
         else if (heroSeat === sbSeat) role = 'sb';
@@ -167,22 +186,22 @@ export async function GET(req: NextRequest) {
 
   // Phase filter
   if (phaseParam === 'preflop') {
-    filtered = filtered.filter((r: any) => !(r.actions || []).some((a: any) => a.street === 'flop' || a.street === 'turn' || a.street === 'river'));
+    filtered = filtered.filter((r) => !(r.actions || []).some((a) => a.street === 'flop' || a.street === 'turn' || a.street === 'river'));
   } else if (phaseParam === 'postflop') {
-    filtered = filtered.filter((r: any) => (r.actions || []).some((a: any) => a.street === 'flop'));
+    filtered = filtered.filter((r) => (r.actions || []).some((a) => a.street === 'flop'));
   }
 
   // Effective stack filter (hero starting stack / BB)
   if (effMinParam != null || effMaxParam != null) {
     const minBB = effMinParam != null ? Number(effMinParam) : -Infinity;
     const maxBB = effMaxParam != null ? Number(effMaxParam) : Infinity;
-    filtered = filtered.filter((r: any) => {
-      const heroSeat = (r.players?.find((p: any) => p.isHero)?.seat) ?? r.heroSeat ?? null;
+    filtered = filtered.filter((r) => {
+      const heroSeat = (r.players?.find((p) => p.isHero)?.seat) ?? r.heroSeat ?? null;
       const bb = r.bbCents ?? null;
       if (heroSeat == null || bb == null || bb <= 0) return false;
-      const stacks = (r.players || []).map((p: any) => ({ seat: p.seat, stack: p.startingStackCents ?? 0 })).filter((p: any) => (p.stack ?? 0) > 0);
-      const heroStart = stacks.find((p: any) => p.seat === heroSeat)?.stack ?? 0;
-      const others = stacks.filter((p: any) => p.seat !== heroSeat).map((p: any) => p.stack);
+      const stacks = (r.players || []).map((p) => ({ seat: p.seat, stack: p.startingStackCents ?? 0 })).filter((p) => (p.stack ?? 0) > 0);
+      const heroStart = stacks.find((p) => p.seat === heroSeat)?.stack ?? 0;
+      const others = stacks.filter((p) => p.seat !== heroSeat).map((p) => p.stack);
       if (heroStart <= 0 || others.length === 0) return false;
       const maxOther = Math.max(...others);
       const effChips = others.length === 1 ? Math.min(heroStart, others[0]!) : Math.min(heroStart, maxOther);

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import type { Action } from '@/generated/prisma';
 import { getObjectAsBuffer } from '@/lib/storage/s3';
 import { parseBetclicText, type ParsedTournament } from '@/packages/parsers/betclic';
 import { unzipSync, strFromU8 } from 'fflate';
@@ -86,7 +87,7 @@ export async function parseImport({
     const persistStart = performance.now();
     let totalImported = 0;
     let totalDuplicates = 0;
-    let totalInvalid = 0;
+    const totalInvalid = 0;
     for (const t of tournamentsToPersist) {
       const tournament = await prisma.tournament.upsert({
         where: { userId_gameId: { userId, gameId: t.gameId } },
@@ -213,9 +214,9 @@ export async function parseImport({
         for (const a of handData.actions ?? []) {
           actionsData.push({
             handId,
-            street: a.street,
+            street: a.street as Action['street'],
             seat: a.seat ?? 0,
-            type: a.type,
+            type: a.type as Action['type'],
             sizeCents: a.sizeCents ?? null,
             isAllIn: a.isAllIn,
             orderNo: a.orderNo,
@@ -225,7 +226,7 @@ export async function parseImport({
           playersData.push({
             handId,
             seat: p.seat,
-            name: p.name,
+            name: p.name ?? '',
             hole: p.hole ?? null,
             startingStackCents: p.startingStackCents ?? null,
             isHero: p.isHero ?? false,
@@ -235,7 +236,13 @@ export async function parseImport({
       }
 
       if (enhancedHandsData.length > 0) {
-        await prisma.hand.createMany({ data: enhancedHandsData });
+        const handCreateArgs: Parameters<typeof prisma.hand.createMany>[0] = {
+          data: enhancedHandsData.map((hand) => ({
+            ...(hand as Record<string, unknown>),
+            tournamentId: String((hand as { tournamentId: unknown }).tournamentId),
+          })),
+        };
+        await prisma.hand.createMany(handCreateArgs);
       }
 
       const batchCreateMany = async <T extends Record<string, unknown>>(items: T[], create: (chunk: T[]) => Promise<unknown>) => {
@@ -243,13 +250,33 @@ export async function parseImport({
         const CHUNK_SIZE = 500;
         for (let i = 0; i < items.length; i += CHUNK_SIZE) {
           const chunk = items.slice(i, i + CHUNK_SIZE);
-          // eslint-disable-next-line no-await-in-loop
           await create(chunk);
         }
       };
 
-      await batchCreateMany(actionsData, (chunk) => prisma.action.createMany({ data: chunk }));
-      await batchCreateMany(playersData, (chunk) => prisma.handPlayer.createMany({ data: chunk, skipDuplicates: true }));
+      await batchCreateMany(actionsData, (chunk) =>
+        prisma.action.createMany({
+          data: chunk.map((action) => ({
+            ...(action as Record<string, unknown>),
+            handId: String(action.handId),
+            street: action.street as Action['street'],
+            type: action.type as Action['type'],
+            seat: Number(action.seat ?? 0),
+            orderNo: Number(action.orderNo ?? 0),
+          })),
+        }),
+      );
+      await batchCreateMany(playersData, (chunk) =>
+        prisma.handPlayer.createMany({
+          data: chunk.map((player) => ({
+            ...(player as Record<string, unknown>),
+            handId: String(player.handId),
+            seat: Number(player.seat ?? 0),
+            name: player.name ?? '',
+          })),
+          skipDuplicates: true,
+        }),
+      );
     }
     const persistMs = performance.now() - persistStart;
 

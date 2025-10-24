@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import memberstack from '@memberstack/dom';
 
 async function getSessionStatus(): Promise<{ authenticated: boolean }>{
   try {
@@ -22,9 +21,13 @@ export default function AutoSso() {
       if (cancelled || session.authenticated) return;
 
       try {
-        const ms = await memberstack.init({ publicKey: process.env.NEXT_PUBLIC_MEMBERSTACK_PUBLIC_KEY as string });
+        const publicKey = process.env.NEXT_PUBLIC_MEMBERSTACK_PUBLIC_KEY;
+        if (!publicKey) return;
+        // Charge Memberstack uniquement côté client pour éviter toute évaluation SSR
+        const mod = await import('@memberstack/dom');
+        const ms = await mod.default.init({ publicKey });
         const member = await ms.getCurrentMember();
-        const memberId = (member as any)?.data?.id as string | undefined;
+        const memberId = typeof member?.data?.id === 'string' ? member.data.id : undefined;
         if (!memberId) return;
         const res = await fetch('/api/auth/memberstack', {
           method: 'POST',

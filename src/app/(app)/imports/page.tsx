@@ -14,8 +14,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
 	Table,
 	TableBody,
@@ -38,26 +36,39 @@ type ImportRow = {
 };
 
 export default function ImportsPage() {
-	const [file, setFile] = useState<File | null>(null);
-	const [status, setStatus] = useState<string>('');
-	const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-	const [uploadSpeedBps, setUploadSpeedBps] = useState<number | null>(null);
-	const [uploadEtaSeconds, setUploadEtaSeconds] = useState<number | null>(null);
-	const [uploadTotalBytes, setUploadTotalBytes] = useState<number | null>(null);
-	const [uploadLoadedBytes, setUploadLoadedBytes] = useState<number | null>(null);
-	const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'finalizing'>('idle');
-const [overallProgress, setOverallProgress] = useState<number | null>(null);
+const [status, setStatus] = useState<string>('');
 const statusPollIntervalRef = useRef<number | null>(null);
 const overallEstimateMsRef = useRef<number | null>(null);
 const overallStartAtRef = useRef<number | null>(null);
 const overallIntervalRef = useRef<number | null>(null);
-	const [importId, setImportId] = useState<string | null>(null);
-	const [rows, setRows] = useState<ImportRow[]>([]);
-	const [folderZip, setFolderZip] = useState<{ blob: Blob; name: string; numFiles: number; size: number; kind: 'folder' | 'zip' } | null>(null);
+const [overallProgress, setOverallProgress] = useState<number | null>(null);
+const [importId, setImportId] = useState<string | null>(null);
+const [rows, setRows] = useState<ImportRow[]>([]);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const folderInputRef = useRef<HTMLInputElement | null>(null);
 // estimation globale via poids fichier plutôt que lecture du contenu
 	type FolderEntry = { file: File; path: string };
+	type DirectoryLike = {
+		isFile: boolean;
+		isDirectory: boolean;
+		name: string;
+		file: (callback: (file: File) => void) => void;
+		createReader: () => {
+			readEntries: (cb: (entries: DirectoryLike[]) => void) => void;
+		};
+	};
+
+	const isDirectoryLike = (entry: unknown): entry is DirectoryLike => {
+		if (!entry || typeof entry !== 'object') return false;
+		const candidate = entry as Partial<DirectoryLike>;
+		return (
+			typeof candidate.isFile === 'boolean' &&
+			typeof candidate.isDirectory === 'boolean' &&
+			typeof candidate.file === 'function' &&
+			typeof candidate.createReader === 'function' &&
+			typeof candidate.name === 'string'
+		);
+	};
 
 	async function refresh() {
 		const r = await fetch('/api/imports');
@@ -70,14 +81,12 @@ const overallIntervalRef = useRef<number | null>(null);
 
 useEffect(() => {
     return () => {
-        if (overallIntervalRef.current) window.clearInterval(overallIntervalRef.current);
         if (statusPollIntervalRef.current) window.clearInterval(statusPollIntervalRef.current);
     };
 }, []);
 
 	async function uploadBlob(blob: Blob, originalName: string, contentType: string) {
-		setUploadPhase('uploading');
-		setUploadProgress(0);
+		const controller = new AbortController();
 		setStatus("Demande d'URL de téléversement...");
 		const res = await fetch('/api/upload-url', {
 			method: 'POST',
@@ -86,62 +95,20 @@ useEffect(() => {
 		});
 		if (!res.ok) {
 			setStatus("Impossible d'obtenir l'URL de téléversement");
-			setUploadProgress(null);
-			setUploadPhase('idle');
 			return;
 		}
-		const { url, key } = await res.json();
-		setStatus('Téléversement vers le stockage...');
-		const putOk = await new Promise<boolean>((resolve) => {
-			const xhr = new XMLHttpRequest();
-			xhr.open('PUT', url, true);
-			const uploadStartedAt = Date.now();
-			setUploadTotalBytes(blob.size);
-			setUploadLoadedBytes(0);
-			setUploadSpeedBps(0);
-			setUploadEtaSeconds(null);
-				xhr.upload.onprogress = (e) => {
-				if (e.lengthComputable) {
-					const total = e.total || blob.size;
-					const loaded = e.loaded;
-					const pct = Math.round((loaded / total) * 100);
-					// On évite d'afficher 100% tant que le PUT n'est pas terminé
-					const clamped = Math.min(95, pct);
-					setUploadProgress(clamped);
-					setUploadLoadedBytes(loaded);
-					setUploadTotalBytes(total);
-					const elapsedSec = Math.max(0.001, (Date.now() - uploadStartedAt) / 1000);
-					const speed = loaded / elapsedSec; // bytes/sec
-					setUploadSpeedBps(speed);
-					const remaining = Math.max(0, total - loaded);
-					const eta = speed > 0 ? remaining / speed : null;
-					setUploadEtaSeconds(eta !== null ? Math.round(eta) : null);
-				}
-			};
-			xhr.onload = () => {
-				resolve(xhr.status >= 200 && xhr.status < 300);
-			};
-			xhr.onerror = () => resolve(false);
-			xhr.setRequestHeader('Content-Type', contentType);
-			xhr.send(blob);
-		});
-		if (!putOk) {
-			setStatus("Échec du téléversement");
-			setUploadProgress(null);
-			setUploadSpeedBps(null);
-			setUploadEtaSeconds(null);
-			setUploadTotalBytes(null);
-			setUploadLoadedBytes(null);
-			setUploadPhase('idle');
-			return;
-		}
-		// Le PUT est terminé : on passe en finalisation et on masque les compteurs
-		setUploadLoadedBytes(null);
-		setUploadTotalBytes(null);
-		setUploadSpeedBps(null);
-		setUploadEtaSeconds(null);
-		setUploadPhase('finalizing');
-		setUploadProgress(100);
+	const { url, key } = await res.json();
+	setStatus('Téléversement vers le stockage...');
+	const putOk = await fetch(url, {
+		method: 'PUT',
+		headers: { 'Content-Type': contentType },
+		body: blob,
+		signal: controller.signal,
+	});
+	if (!putOk.ok) {
+		setStatus("Échec du téléversement");
+		return;
+	}
 		setStatus("Création de l'import...");
 		const create = await fetch('/api/imports', {
 			method: 'POST',
@@ -150,22 +117,11 @@ useEffect(() => {
 		});
 		if (!create.ok) {
 			setStatus("Impossible de créer l'import");
-			setUploadProgress(null);
-			setUploadSpeedBps(null);
-			setUploadEtaSeconds(null);
-			setUploadTotalBytes(null);
-			setUploadLoadedBytes(null);
-			setUploadPhase('idle');
 			return;
 		}
 		const data = await create.json();
 		setImportId(data.id);
 		setStatus(`Import ${data.id} en file d'attente`);
-		setUploadProgress(null);
-		setUploadSpeedBps(null);
-		setUploadEtaSeconds(null);
-		setUploadTotalBytes(null);
-		setUploadLoadedBytes(null);
 		startStatusPolling(data.id);
 		await refresh();
 	}
@@ -205,63 +161,23 @@ useEffect(() => {
 				if (statusPollIntervalRef.current) window.clearInterval(statusPollIntervalRef.current);
 				setOverallProgress(100);
 				setStatus(item.status === 'done' ? "Import terminé" : "Échec de l'import");
-				setUploadPhase('idle');
 				await refresh();
 				setTimeout(() => setOverallProgress(null), 600);
 			}
 		}, 1500);
 	}
 
-	function formatBytes(value: number): string {
-		const units = ['octets', 'Ko', 'Mo', 'Go', 'To'];
-		let v = value;
-		let i = 0;
-		while (v >= 1024 && i < units.length - 1) {
-			v /= 1024;
-			i += 1;
-		}
-		return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
-	}
-
-	function formatBps(bps: number): string {
-		if (bps < 1) return '0 o/s';
-		const units = ['o/s', 'Ko/s', 'Mo/s', 'Go/s'];
-		let v = bps;
-		let i = 0;
-		while (v >= 1024 && i < units.length - 1) {
-			v /= 1024;
-			i += 1;
-		}
-		return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
-	}
-
-	function formatDuration(totalSeconds: number): string {
-		const s = Math.max(0, Math.floor(totalSeconds));
-		const h = Math.floor(s / 3600);
-		const m = Math.floor((s % 3600) / 60);
-		const sec = s % 60;
-		if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-		return `${m}:${sec.toString().padStart(2, '0')}`;
-	}
-
-	async function handleUploadSingle() {
-		if (!file) return;
-		const isZip = file.name.toLowerCase().endsWith('.zip') || (file.type && /zip/i.test(file.type));
-		await uploadBlob(file, file.name, isZip ? 'application/zip' : file.type || 'text/plain');
-	}
 
 	async function buildFolderZipFromEntries(entries: FolderEntry[]) : Promise<{ blob: Blob; name: string; numFiles: number; size: number; kind: 'folder' | 'zip' } | null> {
 		const zipCandidates = entries.filter((entry) => entry.path.toLowerCase().endsWith('.zip'));
 		if (zipCandidates.length > 0) {
 			const zipFile = zipCandidates[0].file;
-			setFolderZip({ blob: zipFile, name: zipFile.name, numFiles: 1, size: zipFile.size, kind: 'zip' });
 			setStatus(`Archive ZIP détectée : ${zipFile.name}`);
 			return { blob: zipFile, name: zipFile.name, numFiles: 1, size: zipFile.size, kind: 'zip' };
 		}
 
 		const txtEntries = entries.filter((entry) => entry.path.toLowerCase().endsWith('.txt'));
 		if (txtEntries.length === 0) {
-			setFolderZip(null);
 			setStatus("Aucun fichier .txt trouvé dans le dossier");
 			return null;
 		}
@@ -272,66 +188,57 @@ useEffect(() => {
 			filesObj[path] = buf;
 		}
 		const zipped = zipSync(filesObj, { level: 6 });
-		const blob = new Blob([zipped], { type: 'application/zip' });
-		setFolderZip({ blob, name: `hands-${Date.now()}.zip`, numFiles: txtEntries.length, size: blob.size, kind: 'folder' });
+		const blob = new Blob([new Uint8Array(zipped)], { type: 'application/zip' });
 		setStatus(`Archive prête : ${txtEntries.length} fichiers, ${(blob.size / (1024 * 1024)).toFixed(2)} MB`);
 		return { blob, name: `hands-${Date.now()}.zip`, numFiles: txtEntries.length, size: blob.size, kind: 'folder' };
 	}
 
 	async function extractFilesFromDataTransfer(dt: DataTransfer): Promise<FolderEntry[]> {
 		const collected: FolderEntry[] = [];
-		const items = Array.from(dt.items || []);
-		const traverse = async (entry: any, base: string) => {
-			if (!entry) return;
+
+		const traverse = async (entry: DirectoryLike, base: string) => {
 			if (entry.isFile) {
 				await new Promise<void>((resolve) => {
-					entry.file((entryFile: File) => {
-						const fullPath = base + entry.name;
-						collected.push({ file: entryFile, path: fullPath });
+					entry.file((file) => {
+						collected.push({ file, path: base ? `${base}/${file.name}` : file.name });
 						resolve();
 					});
 				});
 			} else if (entry.isDirectory) {
-				const reader = entry.createReader();
 				await new Promise<void>((resolve) => {
-					const readBatch = () => {
-						reader.readEntries(async (entries: any[]) => {
-							if (!entries || entries.length === 0) {
-								resolve();
-								return;
-							}
-							for (const subEntry of entries) {
-								await traverse(subEntry, base + entry.name + '/');
-							}
-							readBatch();
-						});
-					};
-					readBatch();
+					const reader = entry.createReader();
+					reader.readEntries(async (entries) => {
+						for (const child of entries) {
+							if (isDirectoryLike(child)) await traverse(child, base ? `${base}/${entry.name}` : entry.name);
+						}
+						resolve();
+					});
 				});
 			}
 		};
-		for (const item of items) {
-			const anyItem = item as any;
-			if (typeof anyItem.webkitGetAsEntry === 'function') {
-				const entry = anyItem.webkitGetAsEntry();
-				if (entry) await traverse(entry, '');
+
+		for (const item of dt.items) {
+			const itemWithEntry = item as DataTransferItem & { webkitGetAsEntry?: () => unknown };
+			if (typeof itemWithEntry.webkitGetAsEntry === 'function') {
+				const entry = itemWithEntry.webkitGetAsEntry();
+				if (isDirectoryLike(entry)) await traverse(entry, '');
 			} else {
 				const fallbackFile = item.getAsFile?.();
 				if (fallbackFile) collected.push({ file: fallbackFile, path: fallbackFile.name });
 			}
 		}
+
 		return collected;
 	}
 
 	async function handleFolderInput(event: React.ChangeEvent<HTMLInputElement>) {
 		const files = event.target.files;
 		if (!files || files.length === 0) {
-			setFolderZip(null);
 			return;
 		}
 		const entries: FolderEntry[] = Array.from(files).map((entryFile) => ({
 			file: entryFile,
-			path: (entryFile as any).webkitRelativePath || entryFile.name,
+			path: (entryFile as File & { webkitRelativePath?: string }).webkitRelativePath || entryFile.name,
 		}));
 		const built = await buildFolderZipFromEntries(entries);
 		if (built) {
@@ -347,14 +254,11 @@ useEffect(() => {
 		if (!dt) return;
 		const entries = await extractFilesFromDataTransfer(dt);
 		if (entries.length === 0) {
-			setFolderZip(null);
 			setStatus("Aucun fichier .txt trouvé dans le dossier");
 			return;
 		}
 		// Si un seul fichier .txt est déposé, on traite comme un fichier direct
 		if (entries.length === 1 && entries[0].path.toLowerCase().endsWith('.txt')) {
-			setFolderZip(null);
-			setFile(entries[0].file);
 			setStatus(`Fichier .txt détecté : ${entries[0].file.name}`);
 			setEstimateFromFileSize(entries[0].file.size, false);
 			beginOverallProgress();
@@ -371,11 +275,6 @@ useEffect(() => {
 
 	function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
 		event.preventDefault();
-	}
-
-	async function handleUploadFolder() {
-		if (!folderZip) return;
-		await uploadBlob(folderZip.blob, folderZip.name, 'application/zip');
 	}
 
 	async function handleDeleteImport(id: string) {
@@ -417,11 +316,10 @@ useEffect(() => {
 						onChange={async (event) => {
 							const f = event.currentTarget.files?.[0];
 							if (f) {
-							setFile(f);
-							const isZip = f.name.toLowerCase().endsWith('.zip') || (f.type && /zip/i.test(f.type));
-							setEstimateFromFileSize(f.size, isZip);
-							beginOverallProgress();
-							await uploadBlob(f, f.name, isZip ? 'application/zip' : f.type || 'text/plain');
+								const isZip = f.name.toLowerCase().endsWith('.zip') || Boolean(f.type && /zip/i.test(f.type));
+								setEstimateFromFileSize(f.size, Boolean(isZip));
+								beginOverallProgress();
+								await uploadBlob(f, f.name, isZip ? 'application/zip' : f.type || 'text/plain');
 							}
 						}}
 					/>

@@ -23,9 +23,10 @@ export class EvWorkerPool {
   private inflight = new Map<string, { resolve: (v: JobOut) => void; reject: (e: unknown) => void }>();
   private roundRobin = 0;
 
-  constructor(private url: string | URL, private size = Math.max(1, Math.min(4, Math.floor((navigator as any).hardwareConcurrency ? (navigator as any).hardwareConcurrency / 2 : 2)))) {
+  constructor(private url: string | URL, private size = Math.max(1, Math.min(4, Math.floor(typeof navigator !== 'undefined' && typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency / 2 : 2)))) {
     for (let i = 0; i < size; i++) {
-      const w = new Worker(this.url as any, { type: 'module' });
+      const workerUrl = typeof this.url === 'string' ? this.url : this.url;
+      const w = new Worker(workerUrl, { type: 'module' });
       w.onmessage = (evt: MessageEvent<JobOut>) => {
         const out = evt.data;
         const inflight = this.inflight.get(out.jobId);
@@ -36,14 +37,14 @@ export class EvWorkerPool {
         this.pump();
       };
       w.onerror = (err) => {
-        // eslint-disable-next-line no-console
-        try {
-          // @ts-expect-error different browsers produce different error shapes
-          const details = { message: err?.message, filename: err?.filename, lineno: err?.lineno, colno: err?.colno };
-          console.error('[EvWorkerPool] worker error', details);
-        } catch {
-          console.error('[EvWorkerPool] worker error');
-        }
+        const unknownErr = err as { message?: unknown; filename?: unknown; lineno?: unknown; colno?: unknown };
+        const details = {
+          message: typeof unknownErr.message === 'string' ? unknownErr.message : undefined,
+          filename: typeof unknownErr.filename === 'string' ? unknownErr.filename : undefined,
+          lineno: typeof unknownErr.lineno === 'number' ? unknownErr.lineno : undefined,
+          colno: typeof unknownErr.colno === 'number' ? unknownErr.colno : undefined,
+        };
+        console.error('[EvWorkerPool] worker error', details);
       };
       this.workers.push(w);
     }

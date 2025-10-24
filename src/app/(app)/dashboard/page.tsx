@@ -25,34 +25,59 @@ type Stats = {
 	chipEvPerGame: number;
 };
 
+type SavedFilters = {
+	period: 'today' | 'yesterday' | 'this-week' | 'this-month' | 'custom' | null;
+	dateFrom: string | undefined;
+	dateTo: string | undefined;
+	timeFrom: string | undefined;
+	timeTo: string | undefined;
+	customMode: 'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate';
+	chartView: 'chips' | 'bankroll';
+	moreOpen: boolean;
+	buyIns: number[];
+	huRoles: Array<'sb' | 'bb'>;
+	m3Roles: Array<'bu' | 'sb' | 'bb'>;
+	position: 'hu' | '3max' | undefined;
+	effMin: string | undefined;
+	effMax: string | undefined;
+	phase: 'preflop' | 'postflop' | undefined;
+};
+
+function safeLocalStorage() {
+	if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+		return null;
+	}
+	return window.localStorage;
+}
+
+function readSavedFilters(key: string) {
+	try {
+		const storage = safeLocalStorage();
+		const raw = storage ? storage.getItem(key) : null;
+		return raw ? JSON.parse(raw) : null;
+	} catch {
+		return null;
+	}
+}
+
+function writeSavedFilters(key: string, data: unknown) {
+	try {
+		const storage = safeLocalStorage();
+		if (storage) storage.setItem(key, JSON.stringify(data));
+	} catch {
+		// ignore
+	}
+}
+
 export default function DashboardPage() {
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const FILTERS_STORAGE_KEY = 'dashboard:filters:v1';
 
 	function readSaved() {
-		try {
-			const raw = typeof window !== 'undefined' ? window.localStorage.getItem(FILTERS_STORAGE_KEY) : null;
-			return raw ? JSON.parse(raw) as Partial<{
-				period: 'today' | 'yesterday' | 'this-week' | 'this-month' | 'custom' | null;
-				dateFrom: string | undefined;
-				dateTo: string | undefined;
-				timeFrom: string | undefined;
-				timeTo: string | undefined;
-				customMode: 'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate';
-				chartView: 'chips' | 'bankroll';
-				moreOpen: boolean;
-				buyIns: number[];
-				huRoles: Array<'sb' | 'bb'>;
-				m3Roles: Array<'bu' | 'sb' | 'bb'>;
-				position: 'hu' | '3max' | undefined;
-				effMin: string | undefined;
-				effMax: string | undefined;
-				phase: 'preflop' | 'postflop' | undefined;
-			}> : null;
-		} catch {
-			return null;
-		}
+		const stored = readSavedFilters(FILTERS_STORAGE_KEY);
+		if (!stored || typeof stored !== 'object') return null;
+		return stored as SavedFilters;
 	}
 
 	const saved = readSaved();
@@ -65,29 +90,42 @@ export default function DashboardPage() {
 	const [customMode, setCustomMode] = useState<'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate'>(() => (saved?.customMode === 'onDate' ? 'onDate' : (saved?.customMode ?? 'since')));
 	const [draftDateFrom, setDraftDateFrom] = useState<string>('');
 	const [draftDateTo, setDraftDateTo] = useState<string>('');
-	const [draftHoursDate, setDraftHoursDate] = useState<string>('');
 	const [draftTimeFrom, setDraftTimeFrom] = useState<string>('');
 	const [draftTimeTo, setDraftTimeTo] = useState<string>('');
 	const [chartView, setChartView] = useState<'chips' | 'bankroll'>(() => saved?.chartView ?? 'chips');
-	const [buyIns, setBuyIns] = useState<number[]>(() => (Array.isArray((saved as any)?.buyIns) ? ((saved as any).buyIns as number[]) : [])); // sélection utilisateur (cents)
+
+	const parseStoredArray = <T,>(value: unknown, guard: (v: unknown) => v is T): T[] => {
+		if (!Array.isArray(value)) return [];
+		return value.filter(guard);
+	};
+
+	const parseStoredNumberArray = (value: unknown): number[] => parseStoredArray<number>(value, (v): v is number => typeof v === 'number' && Number.isFinite(v));
+	const parseStoredHuRoles = (value: unknown): Array<'sb' | 'bb'> => parseStoredArray<'sb' | 'bb'>(value, (v): v is 'sb' | 'bb' => v === 'sb' || v === 'bb');
+	const parseStoredM3Roles = (value: unknown): Array<'bu' | 'sb' | 'bb'> => parseStoredArray<'bu' | 'sb' | 'bb'>(value, (v): v is 'bu' | 'sb' | 'bb' => v === 'bu' || v === 'sb' || v === 'bb');
+
+	const savedBuyIns = parseStoredNumberArray(saved?.buyIns);
+	const savedHuRoles = parseStoredHuRoles(saved?.huRoles);
+	const savedM3Roles = parseStoredM3Roles(saved?.m3Roles);
+
+	const [buyIns, setBuyIns] = useState<number[]>(() => savedBuyIns);
 	const [buyInOptions, setBuyInOptions] = useState<number[]>([]);
 	const [buyInOpen, setBuyInOpen] = useState<boolean>(false);
 	const [draftBuyIns, setDraftBuyIns] = useState<number[]>([]);
 	const [effOpen, setEffOpen] = useState<boolean>(false);
-	const [effMin, setEffMin] = useState<string>(() => saved?.effMin ?? '');
-	const [effMax, setEffMax] = useState<string>(() => saved?.effMax ?? '');
-	const [draftEffMin, setDraftEffMin] = useState<string>('');
-	const [draftEffMax, setDraftEffMax] = useState<string>('');
-	const [position, setPosition] = useState<'hu' | '3max' | undefined>(() => (saved?.position === 'hu' || saved?.position === '3max') ? saved.position : undefined);
-	    const [huRoles, setHuRoles] = useState<Array<'sb' | 'bb'>>(() => (Array.isArray((saved as any)?.huRoles) ? ((saved as any).huRoles as Array<'sb'|'bb'>).filter((r) => r === 'sb' || r === 'bb') : []));
-	const [m3Roles, setM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>(() => (Array.isArray((saved as any)?.m3Roles) ? ((saved as any).m3Roles as Array<'bu'|'sb'|'bb'>).filter((r) => r === 'bu' || r === 'sb' || r === 'bb') : []));
-	const [posOpen, setPosOpen] = useState<boolean>(false);
-	const [draftPosition, setDraftPosition] = useState<'hu' | '3max' | undefined>(undefined);
-	const [draftHuRoles, setDraftHuRoles] = useState<Array<'sb' | 'bb'>>([]);
-	const [draftM3Roles, setDraftM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>([]);
-	const [phase, setPhase] = useState<'preflop' | 'postflop' | undefined>(() => (saved?.phase === 'preflop' || saved?.phase === 'postflop') ? saved.phase : undefined);
-	const [othersOpen, setOthersOpen] = useState<boolean>(false);
-	const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>(undefined);
+const [effMin, setEffMin] = useState<string>(() => saved?.effMin ?? '');
+const [effMax, setEffMax] = useState<string>(() => saved?.effMax ?? '');
+const [draftEffMin, setDraftEffMin] = useState<string>('');
+const [draftEffMax, setDraftEffMax] = useState<string>('');
+const [position, setPosition] = useState<'hu' | '3max' | undefined>(() => (saved?.position === 'hu' || saved?.position === '3max') ? saved.position : undefined);
+const [huRoles, setHuRoles] = useState<Array<'sb' | 'bb'>>(() => savedHuRoles);
+const [m3Roles, setM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>(() => savedM3Roles);
+const [posOpen, setPosOpen] = useState<boolean>(false);
+const [draftPosition, setDraftPosition] = useState<'hu' | '3max' | undefined>(undefined);
+const [draftHuRoles, setDraftHuRoles] = useState<Array<'sb' | 'bb'>>([]);
+const [draftM3Roles, setDraftM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>([]);
+const [phase, setPhase] = useState<'preflop' | 'postflop' | undefined>(() => (saved?.phase === 'preflop' || saved?.phase === 'postflop') ? saved.phase : undefined);
+const [othersOpen, setOthersOpen] = useState<boolean>(false);
+const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>(undefined);
 
 	// Persist filters whenever they change
 	useEffect(() => {
@@ -109,9 +147,7 @@ export default function DashboardPage() {
 				effMax: effMax || undefined,
 				phase: phase ?? undefined,
 			};
-			if (typeof window !== 'undefined') {
-				window.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(data));
-			}
+			writeSavedFilters(FILTERS_STORAGE_KEY, data);
 		} catch {
 			// ignore
 		}

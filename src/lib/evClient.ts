@@ -12,6 +12,8 @@ export type MinimalHand = {
   boardRiver?: string | null;
   totalPotCents?: number | null;
   mainPotCents?: number | null;
+  evRealizedCents?: number | null;
+  evAllInAdjCents?: number | null;
   actions: Array<{ orderNo: number; seat: number | null; type: 'check'|'fold'|'call'|'bet'|'raise'|'push'; sizeCents: number | null; street: 'preflop'|'flop'|'turn'|'river'; isAllIn?: boolean | null }>;
   players: Array<{ seat: number; isHero?: boolean | null; hole?: string | null; startingStackCents?: number | null }>;
 };
@@ -40,8 +42,8 @@ const boardPickers = (hand: MinimalHand) => {
 
 export function computeEvClientForRecord(hand: MinimalHand, samples: number, seed?: number): { realized: number | null; adjusted: number | null } {
   // Prefer server-provided cached EV when available
-  const cachedRealized = (hand as any).evRealizedCents as number | null | undefined;
-  const cachedAdjusted = (hand as any).evAllInAdjCents as number | null | undefined;
+  const cachedRealized = hand.evRealizedCents ?? null;
+  const cachedAdjusted = hand.evAllInAdjCents ?? null;
   if (cachedRealized != null || cachedAdjusted != null) {
     return { realized: cachedRealized ?? null, adjusted: (cachedAdjusted ?? cachedRealized ?? null) };
   }

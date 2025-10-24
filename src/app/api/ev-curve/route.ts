@@ -115,9 +115,12 @@ export async function GET(req: NextRequest) {
 
   // ETag / If-None-Match for caching
   try {
-    const pts: any[] = Array.isArray((data as any).points) ? (data as any).points : [];
+    type EvCurvePoint = { playedAt?: string | null; handId?: string | null };
+    type EvCurveResponse = { points?: EvCurvePoint[]; targetSamples?: number | null };
+    const evData = data as EvCurveResponse;
+    const pts: EvCurvePoint[] = Array.isArray(evData.points) ? evData.points : [];
     const lastPoint = pts.length > 0 ? pts[pts.length - 1] : null;
-    const etagBase = JSON.stringify({ n: pts.length, last: lastPoint?.playedAt ?? lastPoint?.handId ?? null, samp: (data as any).targetSamples ?? null });
+    const etagBase = JSON.stringify({ n: pts.length, last: lastPoint?.playedAt ?? lastPoint?.handId ?? null, samp: evData.targetSamples ?? null });
     const hashBuf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(etagBase));
     const etagHex = Array.from(new Uint8Array(hashBuf)).map((x) => x.toString(16).padStart(2, '0')).join('');
     const etag = 'W"' + etagHex + '"';
@@ -196,8 +199,8 @@ export async function GET(req: NextRequest) {
       }>;
     };
 
-    const hands = await prisma.hand.findMany({
-      where: { tournament: { userId } },
+    const handsRaw = await prisma.hand.findMany({
+      where: userId ? { tournament: { userId: userId as string } } : undefined,
       orderBy: [
         { playedAt: 'asc' },
         { handNo: 'asc' },
@@ -205,7 +208,36 @@ export async function GET(req: NextRequest) {
       ],
       take: limit,
       select: HAND_DEBUG_SELECT,
-    }) as HandDebugRow[];
+    });
+
+    const hands: HandDebugRow[] = handsRaw.map((h) => ({
+      id: h.id,
+      handNo: h.handNo,
+      playedAt: h.playedAt ?? null,
+      heroSeat: h.heroSeat ?? null,
+      winnerSeat: h.winnerSeat ?? null,
+      dealtCards: h.dealtCards ?? null,
+      board: h.board ?? null,
+      boardFlop: h.boardFlop ?? null,
+      boardTurn: h.boardTurn ?? null,
+      boardRiver: h.boardRiver ?? null,
+      totalPotCents: h.totalPotCents ?? null,
+      mainPotCents: h.mainPotCents ?? null,
+      actions: h.actions.map((a) => ({
+        orderNo: a.orderNo,
+        seat: a.seat,
+        type: a.type,
+        sizeCents: a.sizeCents,
+        street: a.street,
+        isAllIn: a.isAllIn,
+      })),
+      players: h.players.map((p) => ({
+        seat: p.seat,
+        isHero: p.isHero,
+        hole: p.hole,
+        startingStackCents: p.startingStackCents,
+      })),
+    }));
 
     const toHandLike = (handRow: HandDebugRow): HandLike => ({
       id: handRow.id,
@@ -263,14 +295,15 @@ export async function GET(req: NextRequest) {
     for (const handRow of hands) {
       const ev = computeHandEvForRecord(toHandLike(handRow), baseOptions);
       const deltaActual = ev.realizedChangeCents ?? 0;
-      const deltaAdj = ev.allInAdjustedChangeCents != null ? ev.allInAdjustedChangeCents : deltaActual;
+      const deltaAdj = ev.allInAdjustedChangeCents ?? deltaActual;
       cumActual += deltaActual;
       cumAdj += deltaAdj;
       const seatEquities = computeSeatEquities(ev, baseOptions);
+      const playedAt = handRow.playedAt?.toISOString() ?? null;
       const row: Record<string, unknown> = {
         handId: handRow.handNo ?? handRow.id,
         handNo: handRow.handNo ?? null,
-        playedAt: handRow.playedAt ? new Date(handRow.playedAt).toISOString() : null,
+        playedAt,
         deltaActual,
         deltaAdj,
         cumActual,
@@ -278,9 +311,13 @@ export async function GET(req: NextRequest) {
         equities: ev.equities ?? null,
         equityBySeat: seatEquities ?? null,
       };
-      if (seatEquities && handRow.heroSeat != null) {
-        row.equityHero = seatEquities[handRow.heroSeat] ?? null;
-        for (const [seatStr, share] of Object.entries(seatEquities)) {
+      if (seatEquities != null) {
+        const equitiesBySeat = seatEquities as Record<number, number>;
+        const heroSeat = handRow.heroSeat;
+        if (heroSeat != null) {
+          row.equityHero = equitiesBySeat[heroSeat as number] ?? null;
+        }
+        for (const [seatStr, share] of Object.entries(equitiesBySeat)) {
           const seatNum = Number(seatStr);
           if (!Number.isFinite(seatNum)) continue;
           const key = seatNum === handRow.heroSeat ? 'equityHero' : `equityPlayer${seatNum}`;
@@ -294,7 +331,7 @@ export async function GET(req: NextRequest) {
 
   if (searchParams.get('debug') === '1') {
     const hands = await prisma.hand.findMany({
-      where: { tournament: { userId } },
+      where: { tournament: { userId: userId as string } },
       orderBy: [
         { playedAt: 'asc' },
         { handNo: 'asc' },
@@ -312,14 +349,20 @@ export async function GET(req: NextRequest) {
       deltaActual: number;
     }> = [];
     for (const h of hands as DebugHand[]) {
-      const ev = await computeHandEv(h.id, { seed: seedParam ? parseInt(seedParam, 10) : undefined, samples: sampParam ? parseInt(sampParam, 10) : undefined });
+      if (!h.id) {
+        continue;
+      }
+      const ev = await computeHandEv(h.id, {
+        seed: options.seed,
+        samples: options.samples,
+      });
       const heroSeat = h.heroSeat ?? h.players.find((p) => p.isHero)?.seat ?? null;
       const heroHoleStr = heroSeat != null ? (h.players.find((p) => p.seat === heroSeat)?.hole || h.dealtCards || null) : null;
       const deltaActual = ev.realizedChangeCents ?? 0;
-      const deltaAdj = ev.allInAdjustedChangeCents != null ? ev.allInAdjustedChangeCents : deltaActual;
+      const deltaAdj = ev.allInAdjustedChangeCents ?? deltaActual;
       details.push({
         handId: h.handNo ?? h.id,
-        playedAt: h.playedAt ? new Date(h.playedAt).toISOString() : null,
+        playedAt: h.playedAt?.toISOString() ?? null,
         heroHole: heroHoleStr,
         deltaAdj,
         deltaActual,

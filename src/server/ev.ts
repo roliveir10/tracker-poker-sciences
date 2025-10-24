@@ -35,7 +35,6 @@ export type { HandEv } from './evHelpers';
 
 const SAMPLE_TIERS = [50, 100, 250] as const;
 const DEFAULT_TARGET = 250;
-const backgroundJobs = new Set<string>();
 
 const normalizeSamples = (requested?: number): number => {
   const desired = requested != null && Number.isFinite(requested) ? requested : DEFAULT_TARGET;

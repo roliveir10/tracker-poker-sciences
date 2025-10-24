@@ -96,7 +96,6 @@ self.onmessage = (evt) => {
   });
   const durationMs = performance.now() - started;
   const out = { jobId, results, durationMs };
-  // eslint-disable-next-line no-undef
   self.postMessage(out);
 };
 

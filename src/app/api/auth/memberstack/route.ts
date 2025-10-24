@@ -8,6 +8,16 @@ type IncomingBody = {
   memberId?: string;
 };
 
+type MemberstackMemberResponse = {
+  email?: string | null;
+  fullName?: string | null;
+  name?: string | null;
+  data?: {
+    email?: string | null;
+    fullName?: string | null;
+  } | null;
+};
+
 function createSessionToken(): string {
   return randomBytes(32).toString('hex');
 }
@@ -35,9 +45,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Vérification côté serveur auprès de Memberstack
-    const ms = await fetchMemberstackMember(memberId);
-    const email: string | null = (ms as any)?.email ?? (ms as any)?.data?.email ?? null;
-    const name: string | null = (ms as any)?.fullName ?? (ms as any)?.name ?? (ms as any)?.data?.fullName ?? null;
+    const ms = (await fetchMemberstackMember(memberId)) as MemberstackMemberResponse;
+    const email: string | null = ms.email ?? ms.data?.email ?? null;
+    const name: string | null = ms.fullName ?? ms.name ?? ms.data?.fullName ?? null;
 
     if (!email) {
       return NextResponse.json({ error: 'member_email_not_found' }, { status: 400 });

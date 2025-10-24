@@ -27,6 +27,11 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const THEME_STORAGE_KEY = "theme";
 
+const clearThemeStorage = () => {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
+  window.localStorage.removeItem(THEME_STORAGE_KEY);
+};
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
   const [preferenceSource, setPreferenceSource] =
@@ -34,9 +39,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [initialized, setInitialized] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(THEME_STORAGE_KEY);
-    }
+    clearThemeStorage();
   }, []);
 
   useEffect(() => {
@@ -49,9 +52,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.classList.toggle("dark", theme === "dark");
     root.classList.toggle("light", theme === "light");
 
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(THEME_STORAGE_KEY);
-    }
+    clearThemeStorage();
   }, [theme, initialized, preferenceSource]);
 
   const value = useMemo<ThemeContextValue>(

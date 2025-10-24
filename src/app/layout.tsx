@@ -22,8 +22,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const sidebarItems: never[] = [];
-
   return (
     <html lang="fr" suppressHydrationWarning data-theme="dark" className="dark">
       <head>
