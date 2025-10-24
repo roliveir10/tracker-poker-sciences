@@ -15,7 +15,7 @@
     "ci:ev": "npm run db:generate && npm run db:migrate:deploy && FILE=$FILE tsx src/scripts/dev-parse.ts && vitest run && tsx src/scripts/ev-debug.ts"
   },
   "dependencies": {
-    "@memberstack/dom": "^2.2.2",
+    "@memberstack/dom": "^2.0.1",
     "@auth/prisma-adapter": "^2.11.0",
     "@aws-sdk/client-s3": "^3.906.0",
     "@aws-sdk/credential-providers": "^3.906.0",
