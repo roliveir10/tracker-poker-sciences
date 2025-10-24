@@ -15,8 +15,7 @@ import {
 
 export function SidebarNav() {
   const pathname = usePathname();
-  type MemberstackSdk = { openModal: (type: 'LOGIN' | 'SIGNUP' | 'PROFILE' | 'FORGOT_PASSWORD' | 'RESET_PASSWORD') => Promise<void> } | null;
-  const [ms, setMs] = useState<MemberstackSdk>(null);
+  const [ms, setMs] = useState<unknown>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,7 +25,7 @@ export function SidebarNav() {
         if (!publicKey) return;
         const mod = await import("@memberstack/dom");
         const sdk = await mod.default.init({ publicKey });
-        if (!cancelled) setMs(sdk);
+        if (!cancelled) setMs(sdk as unknown);
       } catch {
         // silent
       }
@@ -57,7 +56,10 @@ export function SidebarNav() {
             onClick={(e) => {
               if (href === "/signin" && ms) {
                 e.preventDefault();
-                ms.openModal("LOGIN").catch(() => {});
+                (ms as { openModal: (
+                  type: 'LOGIN' | 'SIGNUP' | 'PROFILE' | 'FORGOT_PASSWORD' | 'RESET_PASSWORD',
+                  params?: Record<string, unknown>
+                ) => Promise<unknown> }).openModal("LOGIN").catch(() => {});
               }
             }}
             className={cn(
