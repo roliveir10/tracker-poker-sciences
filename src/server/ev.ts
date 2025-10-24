@@ -261,7 +261,7 @@ export async function getEvCurve(userId: string, limit?: number, options: EvOpti
         const heroSeat = h.heroSeat ?? (h.players.find((p) => p.isHero)?.seat ?? null);
         if (heroSeat == null) return false;
         const preHu = h.actions.filter((a) => a.street === 'preflop' && a.seat != null).sort((a, b) => a.orderNo - b.orderNo);
-        const sbSeat = h.sbCents != null
+        const _sbSeat = h.sbCents != null
           ? (preHu.find((a) => a.sizeCents === h.sbCents)?.seat ?? null)
           : null;
         const pre3 = h.actions.filter((a) => a.street === 'preflop' && a.seat != null).sort((a, b) => a.orderNo - b.orderNo);

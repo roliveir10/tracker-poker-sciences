@@ -14,6 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+type MemberstackMemberEvent = {
+	data?: { id?: string | null } | null;
+};
+
 export default function SignInPage() {
 	const [email, setEmail] = useState('');
 	const [status, setStatus] = useState<string | null>(null);
@@ -37,7 +41,7 @@ export default function SignInPage() {
         const ms = await mod.default.init({ publicKey });
 
         // Lorsqu'un membre se connecte, créer la session locale et rediriger
-        ms.onAuthChange(async (member: any) => {
+		ms.onAuthChange(async (member: MemberstackMemberEvent) => {
           if (cancelled) return;
           try {
             const memberId = typeof member?.data?.id === 'string' ? member.data.id : undefined;

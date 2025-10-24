@@ -15,7 +15,8 @@ import {
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const [ms, setMs] = useState<any>(null);
+  type MemberstackSdk = { openModal: (arg: { type: 'LOGIN' | 'SIGNUP' | 'PROFILE' }) => Promise<void> } | null;
+  const [ms, setMs] = useState<MemberstackSdk>(null);
 
   useEffect(() => {
     let cancelled = false;
