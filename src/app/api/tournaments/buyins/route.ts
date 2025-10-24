@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 import { auth } from '@/auth';
-import { getUserStats, type GetUserStatsOptions } from '@/server/stats';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  let userId = session?.user?.id;
+  let userId = session?.user?.id ?? null;
   const allowDevFallback = process.env.DEV_FALLBACK === '1' || process.env.NODE_ENV !== 'production';
   if (!userId && allowDevFallback) {
-    // Dev fallback: use or create dev@example.com
     const user = await prisma.user.upsert({ where: { email: 'dev@example.com' }, update: {}, create: { email: 'dev@example.com' } });
     userId = user.id;
   }
@@ -21,13 +19,6 @@ export async function GET(req: NextRequest) {
   const dateToParam = searchParams.get('dateTo');
   const hoursFromParam = searchParams.get('hoursFrom');
   const hoursToParam = searchParams.get('hoursTo');
-  const positionParam = searchParams.get('position'); // 'hu' | '3max'
-  const huRolesParam = searchParams.getAll('huRole');
-  const m3RolesParam = searchParams.getAll('m3Role');
-  const effMinParam = searchParams.get('effMin');
-  const effMaxParam = searchParams.get('effMax');
-  const buyInsParam = searchParams.getAll('buyIns');
-  const phaseParam = searchParams.get('phase'); // 'preflop' | 'postflop'
 
   let dateFrom: Date | undefined = dateFromParam ? new Date(dateFromParam) : undefined;
   let dateTo: Date | undefined = dateToParam ? new Date(dateToParam) : undefined;
@@ -38,10 +29,11 @@ export async function GET(req: NextRequest) {
     const dayOfWeek = now.getDay();
     const mondayOffset = (dayOfWeek + 6) % 7;
     switch (periodParam) {
-      case 'today':
+      case 'today': {
         dateFrom = startOfDay(now);
         dateTo = endOfDay(now);
         break;
+      }
       case 'yesterday': {
         const y = new Date(now);
         y.setDate(now.getDate() - 1);
@@ -67,25 +59,46 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const buyIns = buyInsParam
-    .map((v) => parseInt(String(v), 10))
-    .filter((n) => Number.isFinite(n));
+  // Pull tournaments in date range, then filter by hours if provided
+  const tournaments = await prisma.tournament.findMany({
+    where: {
+      userId,
+      ...(dateFrom || dateTo
+        ? {
+            startedAt: {
+              ...(dateFrom ? { gte: dateFrom } : {}),
+              ...(dateTo ? { lte: dateTo } : {}),
+            },
+          }
+        : {}),
+    },
+    orderBy: { startedAt: 'asc' },
+    select: { startedAt: true, buyInCents: true },
+  });
 
-  const opts: GetUserStatsOptions = {
-    dateFrom,
-    dateTo,
-    hoursFrom: hoursFromParam ?? undefined,
-    hoursTo: hoursToParam ?? undefined,
-    buyIns: buyIns.length > 0 ? buyIns : undefined,
-    position: positionParam === 'hu' || positionParam === '3max' ? (positionParam as 'hu' | '3max') : undefined,
-    huRoles: huRolesParam.filter((r) => r === 'sb' || r === 'bb') as Array<'sb' | 'bb'>,
-    m3Roles: m3RolesParam.filter((r) => r === 'bu' || r === 'sb' || r === 'bb') as Array<'bu' | 'sb' | 'bb'>,
-    effMinBB: effMinParam != null ? Number(effMinParam) : undefined,
-    effMaxBB: effMaxParam != null ? Number(effMaxParam) : undefined,
-    phase: phaseParam === 'preflop' || phaseParam === 'postflop' ? (phaseParam as 'preflop' | 'postflop') : undefined,
-  };
-  const stats = await getUserStats(userId, opts);
-  return NextResponse.json(stats);
+  let filtered = tournaments;
+  if (hoursFromParam && hoursToParam) {
+    const parseHhMm = (s: string) => {
+      const [hh, mm] = s.split(':').map((v) => parseInt(v, 10));
+      return (Math.max(0, Math.min(23, hh || 0)) * 60) + (Math.max(0, Math.min(59, mm || 0)));
+    };
+    const fromMin = parseHhMm(hoursFromParam);
+    const toMin = parseHhMm(hoursToParam);
+    const inRange = (d: Date) => {
+      const minutes = d.getUTCHours() * 60 + d.getUTCMinutes();
+      if (fromMin <= toMin) return minutes >= fromMin && minutes < toMin; // [from, to)
+      return minutes >= fromMin || minutes < toMin; // wrap around
+    };
+    filtered = tournaments.filter((t) => (t.startedAt ? inRange(t.startedAt) : false));
+  }
+
+  const distinct = Array.from(
+    new Set(filtered.map((t) => t.buyInCents).filter((v): v is number => Number.isFinite(v)))
+  ).sort((a, b) => a - b);
+
+  return NextResponse.json({ buyIns: distinct });
 }
+
+export const dynamic = 'force-dynamic';
 
 

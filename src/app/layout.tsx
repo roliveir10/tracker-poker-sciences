@@ -2,16 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import {
-  Home,
-  LayoutDashboard,
-  UploadCloud,
-  Trophy,
-  LogIn,
-} from "lucide-react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import { SidebarNav } from "@/components/SidebarNav";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -28,13 +21,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const sidebarItems = [
-    { label: "Home", href: "/", icon: Home },
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Imports", href: "/imports", icon: UploadCloud },
-    { label: "Tournaments", href: "/tournaments", icon: Trophy },
-    { label: "Sign In", href: "/signin", icon: LogIn },
-  ];
+  const sidebarItems: never[] = [];
 
   return (
     <html lang="fr" suppressHydrationWarning data-theme="dark" className="dark">
@@ -57,22 +44,7 @@ export default function RootLayout({
               >
                 Poker Sciences
               </Link>
-              <nav className="flex flex-1 flex-col gap-1">
-                {sidebarItems.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={buttonVariants({
-                      variant: "ghost",
-                      className:
-                        "justify-start gap-3 text-sm font-medium text-muted-foreground transition hover:text-foreground",
-                    })}
-                  >
-                    <Icon className="h-4 w-4" aria-hidden />
-                    <span>{label}</span>
-                  </Link>
-                ))}
-              </nav>
+              <SidebarNav />
             </aside>
             <div className="flex flex-1 flex-col">
               {children}

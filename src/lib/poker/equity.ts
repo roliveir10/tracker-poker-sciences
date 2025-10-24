@@ -100,7 +100,7 @@ export function estimateMultiwayEquity(
   heroHole: [Card, Card],
   villains: Array<[Card, Card]>,
   board: Card[],
-  samples = 10000,
+  samples = 1000,
   rng: () => number = Math.random,
 ): EquityResult {
   let win = 0;
@@ -149,7 +149,7 @@ export function estimateHeroPotEquity(
   villains: Array<{ hole: [Card, Card]; contribution: number }>,
   board: Card[],
   deadMoney = 0,
-  samples = 10000,
+  samples = 1000,
   rng: () => number = Math.random,
 ): HeroPotEquityResult {
   if (heroContribution <= 0) return { winPct: 0, tiePct: 0, sharePct: 0 };

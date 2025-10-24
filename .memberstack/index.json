@@ -1,0 +1,539 @@
+{
+  "version": "2.0.1",
+  "totalMethods": 57,
+  "lastUpdated": "2025-01-11",
+  "categories": {
+    "initialization": {
+      "description": "SDK initialization and setup",
+      "methods": [
+        "init",
+        "getApp"
+      ]
+    },
+    "authentication": {
+      "description": "Methods for user authentication and session management",
+      "methods": [
+        "loginMemberEmailPassword",
+        "signupMemberEmailPassword",
+        "logout",
+        "loginMemberPasswordless",
+        "sendMemberLoginPasswordlessEmail",
+        "loginWithProvider",
+        "signupWithProvider",
+        "sendMemberResetPasswordEmail",
+        "resetMemberPassword",
+        "sendMemberVerificationEmail",
+        "onAuthChange"
+      ]
+    },
+    "members": {
+      "description": "Methods for managing member profiles and data",
+      "methods": [
+        "getCurrentMember",
+        "updateMember",
+        "updateMemberProfileImage",
+        "updateMemberAuth",
+        "getMemberJSON",
+        "updateMemberJSON",
+        "deleteMember"
+      ]
+    },
+    "billing": {
+      "description": "Methods for subscription and billing management",
+      "methods": [
+        "getPlans",
+        "getPlan",
+        "addPlan",
+        "removePlan",
+        "purchasePlansWithCheckout",
+        "launchStripeCustomerPortal"
+      ]
+    },
+    "ui": {
+      "description": "Pre-built UI components and modals",
+      "methods": [
+        "openModal",
+        "showModal",
+        "hideModal",
+        "_showLoader",
+        "_hideLoader",
+        "_showMessage"
+      ]
+    },
+    "content": {
+      "description": "Methods for comments, posts, and secure content",
+      "methods": [
+        "getSecureContent",
+        "getPosts",
+        "createPost",
+        "updatePost",
+        "deletePost",
+        "postVote",
+        "getThreads",
+        "createThread",
+        "threadVote"
+      ]
+    },
+    "teams": {
+      "description": "Team management functionality",
+      "methods": [
+        "joinTeam",
+        "getTeam",
+        "generateInviteToken",
+        "removeMemberFromTeam"
+      ]
+    },
+    "internal": {
+      "description": "Internal utility methods",
+      "methods": [
+        "_Event"
+      ]
+    },
+    "data-tables": {
+      "description": "Database operations for managing data records and tables",
+      "methods": [
+        "queryDataRecords",
+        "getDataTable",
+        "getDataTables",
+        "getDataRecords",
+        "getDataRecord",
+        "createDataRecord",
+        "updateDataRecord",
+        "deleteDataRecord"
+      ]
+    }
+  },
+  "methodDetails": [
+    {
+      "name": "init",
+      "signature": "MemberstackDom.init({ publicKey: string, ...options })",
+      "returns": "Memberstack",
+      "category": "initialization",
+      "description": "Initialize the Memberstack SDK"
+    },
+    {
+      "name": "getApp",
+      "signature": "memberstack.getApp()",
+      "returns": "Promise<{ data: App }>",
+      "category": "initialization",
+      "description": "Get app configuration and test connection"
+    },
+    {
+      "name": "loginMemberEmailPassword",
+      "signature": "loginMemberEmailPassword({ email: string, password: string })",
+      "returns": "Promise<LoginMemberEmailPasswordPayload>",
+      "category": "authentication",
+      "description": "Authenticate member with email and password"
+    },
+    {
+      "name": "signupMemberEmailPassword",
+      "signature": "signupMemberEmailPassword({ email: string, password: string, customFields?: object, metaData?: object, plans?: PlanConnection[] })",
+      "returns": "Promise<SignupMemberEmailPasswordPayload>",
+      "category": "authentication",
+      "description": "Create new member account with email and password"
+    },
+    {
+      "name": "logout",
+      "signature": "logout()",
+      "returns": "Promise<void>",
+      "category": "authentication",
+      "description": "Sign out the current member"
+    },
+    {
+      "name": "loginMemberPasswordless",
+      "signature": "loginMemberPasswordless({ passwordlessToken: string, email: string })",
+      "returns": "Promise<LoginWithPasswordlessPayload>",
+      "category": "authentication",
+      "description": "Complete passwordless login with token"
+    },
+    {
+      "name": "sendMemberLoginPasswordlessEmail",
+      "signature": "sendMemberLoginPasswordlessEmail({ email: string })",
+      "returns": "Promise<SendMemberLoginPasswordlessEmailPayload>",
+      "category": "authentication",
+      "description": "Send passwordless login email"
+    },
+    {
+      "name": "loginWithProvider",
+      "signature": "loginWithProvider({ provider: 'google' | 'facebook' | 'github' })",
+      "returns": "Promise<void>",
+      "category": "authentication",
+      "description": "Initiate social login flow"
+    },
+    {
+      "name": "signupWithProvider",
+      "signature": "signupWithProvider({ provider: 'google' | 'facebook' | 'github', plans?: PlanConnection[] })",
+      "returns": "Promise<void>",
+      "category": "authentication",
+      "description": "Create account via social provider"
+    },
+    {
+      "name": "sendMemberResetPasswordEmail",
+      "signature": "sendMemberResetPasswordEmail({ email: string })",
+      "returns": "Promise<SendMemberResetPasswordEmailPayload>",
+      "category": "authentication",
+      "description": "Send password reset email"
+    },
+    {
+      "name": "resetMemberPassword",
+      "signature": "resetMemberPassword({ token: string, newPassword: string })",
+      "returns": "Promise<ResetMemberPasswordPayload>",
+      "category": "authentication",
+      "description": "Reset password with token"
+    },
+    {
+      "name": "sendMemberVerificationEmail",
+      "signature": "sendMemberVerificationEmail()",
+      "returns": "Promise<SendMemberVerificationEmailPayload>",
+      "category": "authentication",
+      "description": "Send email verification"
+    },
+    {
+      "name": "onAuthChange",
+      "signature": "onAuthChange(callback: (member: Member | null) => void)",
+      "returns": "() => void",
+      "category": "authentication",
+      "description": "Listen for authentication state changes"
+    },
+    {
+      "name": "getCurrentMember",
+      "signature": "getCurrentMember({ useCache?: boolean })",
+      "returns": "Promise<{ data: Member | null }>",
+      "category": "members",
+      "description": "Get currently authenticated member"
+    },
+    {
+      "name": "updateMember",
+      "signature": "updateMember({ customFields?: object, metaData?: object })",
+      "returns": "Promise<UpdateMemberPayload>",
+      "category": "members",
+      "description": "Update member profile data"
+    },
+    {
+      "name": "updateMemberProfileImage",
+      "signature": "updateMemberProfileImage({ profileImage: File })",
+      "returns": "Promise<UpdateMemberProfileImagePayload>",
+      "category": "members",
+      "description": "Update member profile picture"
+    },
+    {
+      "name": "updateMemberAuth",
+      "signature": "updateMemberAuth({ email?: string, oldPassword?: string, newPassword?: string })",
+      "returns": "Promise<UpdateMemberAuthPayload>",
+      "category": "members",
+      "description": "Update authentication credentials"
+    },
+    {
+      "name": "getMemberJSON",
+      "signature": "getMemberJSON()",
+      "returns": "Promise<object>",
+      "category": "members",
+      "description": "Get member data as JSON"
+    },
+    {
+      "name": "updateMemberJSON",
+      "signature": "updateMemberJSON(json: object)",
+      "returns": "Promise<UpdateMemberJSONPayload>",
+      "category": "members",
+      "description": "Update member JSON data"
+    },
+    {
+      "name": "deleteMember",
+      "signature": "deleteMember()",
+      "returns": "Promise<DeleteMemberPayload>",
+      "category": "members",
+      "description": "Permanently delete member account"
+    },
+    {
+      "name": "getPlans",
+      "signature": "getPlans()",
+      "returns": "Promise<{ data: Plan[] }>",
+      "category": "billing",
+      "description": "Get all available plans"
+    },
+    {
+      "name": "getPlan",
+      "signature": "getPlan({ planId: string })",
+      "returns": "Promise<{ data: Plan }>",
+      "category": "billing",
+      "description": "Get specific plan details"
+    },
+    {
+      "name": "addPlan",
+      "signature": "addPlan({ planId: string })",
+      "returns": "Promise<AddPlanPayload>",
+      "category": "billing",
+      "description": "Add plan to member (free plans only)"
+    },
+    {
+      "name": "removePlan",
+      "signature": "removePlan({ planId: string })",
+      "returns": "Promise<RemovePlanPayload>",
+      "category": "billing",
+      "description": "Remove plan from member"
+    },
+    {
+      "name": "purchasePlansWithCheckout",
+      "signature": "purchasePlansWithCheckout({ priceId: string, couponId?: string, successUrl?: string, cancelUrl?: string, autoRedirect?: boolean })",
+      "returns": "Promise<PurchasePlanPayload>",
+      "category": "billing",
+      "description": "Open Stripe checkout for plan purchase"
+    },
+    {
+      "name": "launchStripeCustomerPortal",
+      "signature": "launchStripeCustomerPortal({ returnUrl?: string, autoRedirect?: boolean })",
+      "returns": "Promise<LaunchStripePortalPayload>",
+      "category": "billing",
+      "description": "Open Stripe billing portal"
+    },
+    {
+      "name": "openModal",
+      "signature": "openModal({ type: 'LOGIN' | 'SIGNUP' | 'PROFILE' | 'FORGOT_PASSWORD' })",
+      "returns": "Promise<void>",
+      "category": "ui",
+      "description": "Open pre-built modal"
+    },
+    {
+      "name": "showModal",
+      "signature": "showModal({ type: 'LOGIN' | 'SIGNUP' | 'PROFILE' })",
+      "returns": "Promise<void>",
+      "category": "ui",
+      "description": "Show pre-built modal (alternate method)"
+    },
+    {
+      "name": "hideModal",
+      "signature": "hideModal()",
+      "returns": "void",
+      "category": "ui",
+      "description": "Close currently open modal"
+    },
+    {
+      "name": "_showLoader",
+      "signature": "_showLoader(element?: HTMLElement)",
+      "returns": "void",
+      "category": "ui",
+      "description": "Show loading indicator"
+    },
+    {
+      "name": "_hideLoader",
+      "signature": "_hideLoader(element?: HTMLElement)",
+      "returns": "void",
+      "category": "ui",
+      "description": "Hide loading indicator"
+    },
+    {
+      "name": "_showMessage",
+      "signature": "_showMessage(message: string, isError: boolean)",
+      "returns": "void",
+      "category": "ui",
+      "description": "Display user message"
+    },
+    {
+      "name": "getSecureContent",
+      "signature": "getSecureContent({ contentId: string })",
+      "returns": "Promise<SecureContentPayload>",
+      "category": "content",
+      "description": "Fetch secure/gated content"
+    },
+    {
+      "name": "getPosts",
+      "signature": "getPosts({ channelKey: string, order?: 'newest' | 'oldest', after?: string, limit?: number })",
+      "returns": "Promise<GetPostsPayload>",
+      "category": "content",
+      "description": "Get posts/comments from a channel"
+    },
+    {
+      "name": "createPost",
+      "signature": "createPost({ content: string, parentId?: string })",
+      "returns": "Promise<CreatePostPayload>",
+      "category": "content",
+      "description": "Create new post/comment"
+    },
+    {
+      "name": "updatePost",
+      "signature": "updatePost({ postId: string, content: string })",
+      "returns": "Promise<UpdatePostPayload>",
+      "category": "content",
+      "description": "Update existing post"
+    },
+    {
+      "name": "deletePost",
+      "signature": "deletePost({ postId: string })",
+      "returns": "Promise<DeletePostPayload>",
+      "category": "content",
+      "description": "Delete post"
+    },
+    {
+      "name": "postVote",
+      "signature": "postVote({ postId: string, vote: 'up' | 'down' })",
+      "returns": "Promise<PostVotePayload>",
+      "category": "content",
+      "description": "Vote on a post"
+    },
+    {
+      "name": "getThreads",
+      "signature": "getThreads({ limit?: number, offset?: number })",
+      "returns": "Promise<{ data: Thread[] }>",
+      "category": "content",
+      "description": "Get discussion threads"
+    },
+    {
+      "name": "createThread",
+      "signature": "createThread({ title: string, content: string })",
+      "returns": "Promise<CreateThreadPayload>",
+      "category": "content",
+      "description": "Create new discussion thread"
+    },
+    {
+      "name": "threadVote",
+      "signature": "threadVote({ threadId: string, vote: 'up' | 'down' })",
+      "returns": "Promise<ThreadVotePayload>",
+      "category": "content",
+      "description": "Vote on a thread"
+    },
+    {
+      "name": "joinTeam",
+      "signature": "joinTeam({ inviteToken: string })",
+      "returns": "Promise<JoinTeamPayload>",
+      "category": "teams",
+      "description": "Join team with invite token"
+    },
+    {
+      "name": "getTeam",
+      "signature": "getTeam({ teamId: string })",
+      "returns": "Promise<GetTeamPayload>",
+      "category": "teams",
+      "description": "Get team information"
+    },
+    {
+      "name": "generateInviteToken",
+      "signature": "generateInviteToken({ teamId: string })",
+      "returns": "Promise<{ token: string }>",
+      "category": "teams",
+      "description": "Generate team invite token"
+    },
+    {
+      "name": "removeMemberFromTeam",
+      "signature": "removeMemberFromTeam({ memberId: string, teamId: string })",
+      "returns": "Promise<RemoveMemberPayload>",
+      "category": "teams",
+      "description": "Remove member from team"
+    },
+    {
+      "name": "_Event",
+      "signature": "_Event({ type: string, data: object })",
+      "returns": "Promise<void>",
+      "category": "internal",
+      "description": "Internal event tracking"
+    },
+    {
+      "name": "queryDataRecords",
+      "signature": "queryDataRecords({ table: string, query: DataRecordsQuery })",
+      "returns": "Promise<QueryDataRecordsPayload>",
+      "category": "data-tables",
+      "description": "Query records with advanced filtering, sorting, and relationships"
+    },
+    {
+      "name": "getDataTable",
+      "signature": "getDataTable({ table: string })",
+      "returns": "Promise<GetDataTablePayload>",
+      "category": "data-tables",
+      "description": "Get metadata about a single data table"
+    },
+    {
+      "name": "getDataTables",
+      "signature": "getDataTables()",
+      "returns": "Promise<GetDataTablesPayload>",
+      "category": "data-tables",
+      "description": "List all accessible data tables"
+    },
+    {
+      "name": "getDataRecords",
+      "signature": "getDataRecords({ table: string, ...filters })",
+      "returns": "Promise<GetDataRecordsPayload>",
+      "category": "data-tables",
+      "description": "List records from a table with basic filters"
+    },
+    {
+      "name": "getDataRecord",
+      "signature": "getDataRecord({ recordId: string })",
+      "returns": "Promise<GetDataRecordPayload>",
+      "category": "data-tables",
+      "description": "Get a single record by ID"
+    },
+    {
+      "name": "createDataRecord",
+      "signature": "createDataRecord({ table: string, data: object }),"
+      "returns": "Promise<CreateDataRecordPayload>",
+      "category": "data-tables",
+      "description": "Create a new record in a table"
+    },
+    {
+      "name": "updateDataRecord",
+      "signature": "updateDataRecord({ recordId: string, data: object })",
+      "returns": "Promise<UpdateDataRecordPayload>",
+      "category": "data-tables",
+      "description": "Update record including reference operations"
+    },
+    {
+      "name": "deleteDataRecord",
+      "signature": "deleteDataRecord({ recordId: string })",
+      "returns": "Promise<DeleteDataRecordPayload>",
+      "category": "data-tables",
+      "description": "Delete a record from a table"
+    }
+  ],
+  "searchKeywords": {
+    "init": ["init", "initialize", "setup", "start"],
+    "app": ["getApp", "connection", "test"],
+    "login": ["loginMemberEmailPassword", "loginMemberPasswordless", "loginWithProvider", "sendMemberLoginPasswordlessEmail"],
+    "signup": ["signupMemberEmailPassword", "signupWithProvider"],
+    "logout": ["logout"],
+    "password": ["loginMemberEmailPassword", "signupMemberEmailPassword", "resetMemberPassword", "sendMemberResetPasswordEmail", "updateMemberAuth"],
+    "email": ["loginMemberEmailPassword", "signupMemberEmailPassword", "sendMemberLoginPasswordlessEmail", "sendMemberResetPasswordEmail", "sendMemberVerificationEmail"],
+    "social": ["loginWithProvider", "signupWithProvider"],
+    "oauth": ["loginWithProvider", "signupWithProvider"],
+    "google": ["loginWithProvider", "signupWithProvider"],
+    "facebook": ["loginWithProvider", "signupWithProvider"],
+    "member": ["getCurrentMember", "updateMember", "deleteMember", "getMemberJSON", "updateMemberJSON", "removeMemberFromTeam"],
+    "profile": ["updateMember", "updateMemberProfileImage", "openModal", "showModal"],
+    "plan": ["getPlans", "getPlan", "addPlan", "removePlan", "purchasePlansWithCheckout"],
+    "subscription": ["getPlans", "getPlan", "addPlan", "removePlan", "purchasePlansWithCheckout"],
+    "billing": ["purchasePlansWithCheckout", "launchStripeCustomerPortal"],
+    "payment": ["purchasePlansWithCheckout", "launchStripeCustomerPortal"],
+    "stripe": ["purchasePlansWithCheckout", "launchStripeCustomerPortal"],
+    "checkout": ["purchasePlansWithCheckout"],
+    "modal": ["openModal", "showModal", "hideModal"],
+    "ui": ["openModal", "showModal", "hideModal", "_showLoader", "_hideLoader", "_showMessage"],
+    "team": ["joinTeam", "getTeam", "generateInviteToken", "removeMemberFromTeam"],
+    "auth": ["onAuthChange", "updateMemberAuth"],
+    "passwordless": ["loginMemberPasswordless", "sendMemberLoginPasswordlessEmail"],
+    "verification": ["sendMemberVerificationEmail"],
+    "reset": ["resetMemberPassword", "sendMemberResetPasswordEmail"],
+    "update": ["updateMember", "updateMemberProfileImage", "updateMemberAuth", "updateMemberJSON", "updatePost"],
+    "delete": ["deleteMember", "deletePost", "removeMemberFromTeam"],
+    "get": ["getApp", "getCurrentMember", "getPlans", "getPlan", "getMemberJSON", "getTeam", "getSecureContent", "getPosts", "getThreads"],
+    "fetch": ["getCurrentMember", "getPlans", "getPlan", "getMemberJSON", "getTeam", "getSecureContent", "getPosts", "getThreads"],
+    "comment": ["getPosts", "createPost", "updatePost", "deletePost", "postVote"],
+    "post": ["getPosts", "createPost", "updatePost", "deletePost", "postVote"],
+    "thread": ["getThreads", "createThread", "threadVote"],
+    "vote": ["postVote", "threadVote"],
+    "content": ["getSecureContent", "getPosts", "createPost", "updatePost", "deletePost"],
+    "secure": ["getSecureContent"],
+    "loader": ["_showLoader", "_hideLoader"],
+    "message": ["_showMessage"],
+    "channel": ["getPosts"],
+    "database": ["queryDataRecords", "getDataTable", "getDataTables", "getDataRecords", "getDataRecord", "createDataRecord", "updateDataRecord", "deleteDataRecord"],
+    "data": ["queryDataRecords", "getDataTable", "getDataTables", "getDataRecords", "getDataRecord", "createDataRecord", "updateDataRecord", "deleteDataRecord"],
+    "table": ["getDataTable", "getDataTables", "queryDataRecords", "getDataRecords"],
+    "record": ["queryDataRecords", "getDataRecords", "getDataRecord", "createDataRecord", "updateDataRecord", "deleteDataRecord"],
+    "query": ["queryDataRecords", "getDataRecords"],
+    "create": ["createDataRecord"],
+    "filter": ["queryDataRecords", "getDataRecords"],
+    "sort": ["queryDataRecords", "getDataRecords"],
+    "reference": ["updateDataRecord"],
+    "relationship": ["queryDataRecords", "updateDataRecord"],
+    "like": ["updateDataRecord"],
+    "bookmark": ["updateDataRecord"]
+  }
+}

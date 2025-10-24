@@ -37,6 +37,13 @@ export async function GET(req: NextRequest) {
   const dateToParam = searchParams.get('dateTo');
   const hoursFromParam = searchParams.get('hoursFrom');
   const hoursToParam = searchParams.get('hoursTo');
+  const buyInsParam = searchParams.getAll('buyIns'); // e.g., ?buyIns=100&buyIns=200
+  const positionParam = searchParams.get('position'); // 'hu' | '3max'
+  const huRolesParam = searchParams.getAll('huRole'); // e.g., huRole=sb&huRole=bb
+  const m3RolesParam = searchParams.getAll('m3Role'); // e.g., m3Role=bu&sb&bb
+  const effMinParam = searchParams.get('effMin');
+  const effMaxParam = searchParams.get('effMax');
+  const phaseParam = searchParams.get('phase'); // 'preflop' | 'postflop'
   const options = {
     seed: seedParam ? parseInt(seedParam, 10) : undefined,
     samples: sampParam ? parseInt(sampParam, 10) : undefined,
@@ -83,7 +90,48 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const data = await getEvCurve(userId, limit, { ...options, dateFrom, dateTo, hoursFrom: hoursFromParam ?? undefined, hoursTo: hoursToParam ?? undefined });
+  const buyIns = buyInsParam
+    .map((v) => parseInt(String(v), 10))
+    .filter((n) => Number.isFinite(n)) as number[];
+
+  const data = await getEvCurve(
+    userId,
+    limit,
+    {
+      ...options,
+      dateFrom,
+      dateTo,
+      hoursFrom: hoursFromParam ?? undefined,
+      hoursTo: hoursToParam ?? undefined,
+      buyIns: buyIns.length > 0 ? buyIns : undefined,
+      position: positionParam === 'hu' || positionParam === '3max' ? (positionParam as 'hu' | '3max') : undefined,
+      huRoles: huRolesParam.filter((r) => r === 'sb' || r === 'bb') as Array<'sb' | 'bb'>,
+      m3Roles: m3RolesParam.filter((r) => r === 'bu' || r === 'sb' || r === 'bb') as Array<'bu' | 'sb' | 'bb'>,
+      effMinBB: effMinParam != null ? Number(effMinParam) : undefined,
+      effMaxBB: effMaxParam != null ? Number(effMaxParam) : undefined,
+      phase: phaseParam === 'preflop' || phaseParam === 'postflop' ? (phaseParam as 'preflop' | 'postflop') : undefined,
+    },
+  );
+
+  // ETag / If-None-Match for caching
+  try {
+    const pts: any[] = Array.isArray((data as any).points) ? (data as any).points : [];
+    const lastPoint = pts.length > 0 ? pts[pts.length - 1] : null;
+    const etagBase = JSON.stringify({ n: pts.length, last: lastPoint?.playedAt ?? lastPoint?.handId ?? null, samp: (data as any).targetSamples ?? null });
+    const hashBuf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(etagBase));
+    const etagHex = Array.from(new Uint8Array(hashBuf)).map((x) => x.toString(16).padStart(2, '0')).join('');
+    const etag = 'W"' + etagHex + '"';
+    const inm = req.headers.get('if-none-match');
+    if (inm && inm === etag) {
+      return new NextResponse(null, { status: 304, headers: { ETag: etag } });
+    }
+    const res = NextResponse.json(data);
+    res.headers.set('ETag', etag);
+    res.headers.set('Cache-Control', 'public, max-age=30, s-maxage=60');
+    return res;
+  } catch {
+    return NextResponse.json(data);
+  }
 
   if (searchParams.get('debug') === '2') {
     const HAND_DEBUG_SELECT = {
@@ -195,7 +243,7 @@ export async function GET(req: NextRequest) {
       );
       if (participants.length < 2) return null;
       const board = context.board;
-      const samples = Math.max(1, base.samples ?? 10000);
+      const samples = Math.max(1, base.samples ?? 1000);
       const result: Record<number, number> = {};
       participants.forEach((participant, idx) => {
         const others = participants.filter((_, j) => j !== idx).map((p) => p.hole);

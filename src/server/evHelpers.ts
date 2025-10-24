@@ -409,7 +409,7 @@ export function computeHandEvForRecord(hand: HandLike, options: EvOptions = {}):
         const heroEligiblePot = heroEffectiveContribution + totalVillainEligible;
         if (heroEligiblePot > 0 && heroEffectiveContribution > 0) {
           const rng = options.seed != null ? makeSeededRng(options.seed) : Math.random;
-          const samples = Math.max(1, options.samples ?? 10000);
+          const samples = Math.max(1, options.samples ?? 1000);
           const equity = estimateHeroPotEquity(
             heroHole as [string, string],
             heroEffectiveContribution,
@@ -489,7 +489,7 @@ export function computeHandEvForRecord(hand: HandLike, options: EvOptions = {}):
           realized = heroEligiblePot - heroContribution;
         } else {
           const rng = options.seed != null ? makeSeededRng(options.seed) : Math.random;
-          const samples = Math.max(1, options.samples ?? 10000);
+          const samples = Math.max(1, options.samples ?? 1000);
           const equity = estimateHeroPotEquity(
             heroHole as [string, string],
             heroContribution,
@@ -541,7 +541,7 @@ export function computeHandEvForRecord(hand: HandLike, options: EvOptions = {}):
       const heroEligiblePot = heroEffectiveContribution + totalVillainEligible;
       if (heroEligiblePot > 0 && heroEffectiveContribution > 0) {
         const rng = options.seed != null ? makeSeededRng(options.seed) : Math.random;
-        const samples = Math.max(1, options.samples ?? 10000);
+        const samples = Math.max(1, options.samples ?? 1000);
         const equity = estimateHeroPotEquity(
           heroHole as [string, string],
           heroEffectiveContribution,

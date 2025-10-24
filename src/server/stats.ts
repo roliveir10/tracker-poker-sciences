@@ -12,9 +12,23 @@ export type UserStats = {
   chipEvPerGame: number;
 };
 
+export type GetUserStatsOptions = {
+  dateFrom?: Date;
+  dateTo?: Date;
+  hoursFrom?: string;
+  hoursTo?: string;
+  buyIns?: number[];
+  position?: 'hu' | '3max';
+  huRoles?: Array<'sb' | 'bb'>;
+  m3Roles?: Array<'bu' | 'sb' | 'bb'>;
+  effMinBB?: number;
+  effMaxBB?: number;
+  phase?: 'preflop' | 'postflop';
+};
+
 export async function getUserStats(
   userId: string,
-  options?: { dateFrom?: Date; dateTo?: Date; hoursFrom?: string; hoursTo?: string },
+  options?: GetUserStatsOptions,
 ): Promise<UserStats> {
   const dateFilter = (from?: Date, to?: Date) =>
     from || to
@@ -28,6 +42,7 @@ export async function getUserStats(
     prisma.tournament.findMany({
       where: {
         userId,
+        ...(Array.isArray(options?.buyIns) && options?.buyIns.length ? { buyInCents: { in: options!.buyIns! } } : {}),
         ...(options?.dateFrom || options?.dateTo
           ? { startedAt: dateFilter(options?.dateFrom, options?.dateTo) }
           : {}),
@@ -35,7 +50,7 @@ export async function getUserStats(
     }),
     prisma.hand.count({
       where: {
-        tournament: { userId },
+        tournament: { userId, ...(Array.isArray(options?.buyIns) && options?.buyIns.length ? { buyInCents: { in: options!.buyIns! } } : {}) },
         ...(options?.dateFrom || options?.dateTo
           ? { playedAt: dateFilter(options?.dateFrom, options?.dateTo) }
           : {}),
@@ -43,7 +58,7 @@ export async function getUserStats(
     }),
     prisma.hand.findMany({
       where: {
-        tournament: { userId },
+        tournament: { userId, ...(Array.isArray(options?.buyIns) && options?.buyIns.length ? { buyInCents: { in: options!.buyIns! } } : {}) },
         ...(options?.dateFrom || options?.dateTo
           ? { playedAt: dateFilter(options?.dateFrom, options?.dateTo) }
           : {}),
@@ -54,10 +69,16 @@ export async function getUserStats(
         { createdAt: 'asc' },
       ],
       select: {
+        sbCents: true,
+        bbCents: true,
+        id: true,
         evAllInAdjCents: true,
         evRealizedCents: true,
         playedAt: true,
         tournamentId: true,
+        heroSeat: true,
+        players: { select: { seat: true, isHero: true, startingStackCents: true } },
+        actions: { select: { street: true, seat: true, orderNo: true, sizeCents: true } },
       },
     }),
   ]);
@@ -88,6 +109,17 @@ export async function getUserStats(
     });
   }
 
+  // Phase filter (préflop/postflop)
+  if (options?.phase === 'preflop') {
+    const filteredHands = cevHands.filter((h) => !((h as any).actions || []).some((a: any) => a.street === 'flop' || a.street === 'turn' || a.street === 'river'));
+    cevHands = filteredHands;
+    handsCount = filteredHands.length;
+  } else if (options?.phase === 'postflop') {
+    const filteredHands = cevHands.filter((h) => ((h as any).actions || []).some((a: any) => a.street === 'flop'));
+    cevHands = filteredHands;
+    handsCount = filteredHands.length;
+  }
+
   const tournamentsCount = tournaments.length;
   const totalBuyInCents = tournaments.reduce((s, t) => s + (t as any).buyInCents, 0);
   const totalRakeCents = tournaments.reduce((s, t) => s + (t as any).rakeCents, 0);
@@ -107,16 +139,88 @@ export async function getUserStats(
     .map(([multiplier, count]) => ({ multiplier, count }))
     .sort((a, b) => a.multiplier - b.multiplier);
 
-  let cumulativeAdj = 0;
-  let peakAdj = 0;
-  for (const hand of cevHands) {
-    const delta = hand.evAllInAdjCents ?? hand.evRealizedCents ?? 0;
-    cumulativeAdj += delta;
-    if (cumulativeAdj > peakAdj) peakAdj = cumulativeAdj;
+  // Apply effective stack filter first (independently of position)
+  const applyEffFilter = (hands: any[]): any[] => {
+    if (options?.effMinBB == null && options?.effMaxBB == null) return hands;
+    const minBB = options.effMinBB != null ? Number(options.effMinBB) : -Infinity;
+    const maxBB = options.effMaxBB != null ? Number(options.effMaxBB) : Infinity;
+    return hands.filter((h: any) => {
+      const heroSeat = (h as any).players?.find?.((p: any) => p.isHero)?.seat ?? (h as any).heroSeat ?? null;
+      const bb = (h as any).bbCents ?? null;
+      if (heroSeat == null || bb == null || bb <= 0) return false;
+      const stacks = ((h as any).players ?? []).map((p: any) => ({ seat: p.seat, stack: p.startingStackCents ?? 0 })).filter((p: any) => (p.stack ?? 0) > 0);
+      const heroStart = stacks.find((p: any) => p.seat === heroSeat)?.stack ?? 0;
+      const others = stacks.filter((p: any) => p.seat !== heroSeat).map((p: any) => p.stack);
+      if (heroStart <= 0 || others.length === 0) return false;
+      const maxOther = Math.max(...others);
+      const effChips = others.length === 1 ? Math.min(heroStart, others[0]!) : Math.min(heroStart, maxOther);
+      const effBB = effChips / bb;
+      return effBB >= minBB && effBB <= maxBB;
+    });
+  };
+
+  const baseHands = applyEffFilter(cevHands);
+
+  // Position-aware CEV per game when requested
+  let chipEvPerGame: number;
+  let tournamentsOut: number | null = null;
+  if (options?.position === 'hu' || options?.position === '3max') {
+    const want = options.position === 'hu' ? 2 : 3;
+    let filteredHands = baseHands.filter((h: any) => Array.isArray(h.players) ? (new Set(h.players.map((p: any) => p.seat)).size === want) : false);
+    if (options.position === 'hu' && Array.isArray(options.huRoles) && options.huRoles.length > 0) {
+      filteredHands = filteredHands.filter((h: any) => {
+        const heroSeat = (h as any).players?.find?.((p: any) => p.isHero)?.seat ?? (h as any).heroSeat ?? null;
+        const pre = ((h as any).actions ?? []).filter((a: any) => a.street === 'preflop' && a.seat != null).sort((a: any, b: any) => a.orderNo - b.orderNo);
+        const sbSeat = (h as any).sbCents != null ? (pre.find((a: any) => a.sizeCents === (h as any).sbCents)?.seat ?? null) : null;
+        if (heroSeat == null || sbSeat == null) return false;
+        const heroIsSb = sbSeat === heroSeat;
+        if (heroIsSb && options.huRoles!.includes('sb')) return true;
+        if (!heroIsSb && options.huRoles!.includes('bb')) return true;
+        return false;
+      });
+    }
+    if (options.position === '3max' && Array.isArray(options.m3Roles) && options.m3Roles.length > 0) {
+      filteredHands = filteredHands.filter((h: any) => {
+        const heroSeat = (h as any).players?.find?.((p: any) => p.isHero)?.seat ?? (h as any).heroSeat ?? null;
+        if (heroSeat == null) return false;
+        const pre = ((h as any).actions ?? []).filter((a: any) => a.street === 'preflop' && a.seat != null).sort((a: any, b: any) => a.orderNo - b.orderNo);
+        const sbSeat = (h as any).sbCents != null ? (pre.find((a: any) => a.sizeCents === (h as any).sbCents)?.seat ?? null) : null;
+        const bbSeat = (h as any).bbCents != null ? (pre.find((a: any) => a.sizeCents === (h as any).bbCents && a.seat !== sbSeat)?.seat ?? null) : null;
+        if (sbSeat == null || bbSeat == null) return false;
+        const seats = new Set(((h as any).players ?? []).map((p: any) => p.seat));
+        const btnSeat = Array.from(seats).find((s) => s !== sbSeat && s !== bbSeat) ?? null;
+        let role: 'bu' | 'sb' | 'bb' | null = null;
+        if (heroSeat === btnSeat) role = 'bu';
+        else if (heroSeat === sbSeat) role = 'sb';
+        else if (heroSeat === bbSeat) role = 'bb';
+        if (!role) return false;
+        return options.m3Roles!.includes(role);
+      });
+    }
+    const sumAdj = filteredHands.reduce((s, h) => s + (h.evAllInAdjCents ?? h.evRealizedCents ?? 0), 0);
+    const tourneySet = new Set<string>();
+    for (const h of filteredHands) if (h.tournamentId) tourneySet.add(h.tournamentId);
+    const denom = tourneySet.size || 0;
+    chipEvPerGame = denom === 0 ? 0 : Math.round(sumAdj / denom);
+    tournamentsOut = denom;
+  } else {
+    // Peak cumulative adjusted EV divided by tournaments in the (optionally eff-filtered) set
+    let cumulativeAdj = 0;
+    let peakAdj = 0;
+    for (const hand of baseHands) {
+      const delta = hand.evAllInAdjCents ?? hand.evRealizedCents ?? 0;
+      cumulativeAdj += delta;
+      if (cumulativeAdj > peakAdj) peakAdj = cumulativeAdj;
+    }
+    const tourneySet = new Set<string>();
+    for (const h of baseHands) if ((h as any).tournamentId) tourneySet.add((h as any).tournamentId);
+    const denom = (options?.effMinBB != null || options?.effMaxBB != null || options?.phase != null) ? tourneySet.size : tournamentsCount;
+    tournamentsOut = (options?.effMinBB != null || options?.effMaxBB != null || options?.phase != null) ? tourneySet.size : null;
+    chipEvPerGame = denom === 0 ? 0 : Math.round(peakAdj / denom);
   }
 
   return {
-    tournaments: tournamentsCount,
+    tournaments: (tournamentsOut != null ? tournamentsOut : (options?.position ? (tournaments as any[]).length : tournamentsCount)),
     hands: handsCount,
     totalBuyInCents,
     totalRakeCents,
@@ -124,6 +228,6 @@ export async function getUserStats(
     roiPct,
     itmPct,
     multiplierHistogram,
-    chipEvPerGame: tournamentsCount === 0 ? 0 : Math.round(peakAdj / tournamentsCount),
+    chipEvPerGame,
   };
 }

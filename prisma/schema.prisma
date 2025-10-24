@@ -107,6 +107,9 @@ model Import {
   status       ImportStatus @default(queued)
   fileKey      String
   numHands     Int          @default(0)
+  numImported  Int          @default(0)
+  numDuplicates Int         @default(0)
+  numInvalid   Int          @default(0)
   error        String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -170,6 +173,7 @@ model Hand {
   players      HandPlayer[]
 
   @@index([tournamentId])
+  @@unique([tournamentId, handNo])
 }
 
 model Action {

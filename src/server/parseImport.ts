@@ -3,7 +3,7 @@ import { getObjectAsBuffer } from '@/lib/storage/s3';
 import { parseBetclicText, type ParsedTournament } from '@/packages/parsers/betclic';
 import { unzipSync, strFromU8 } from 'fflate';
 import { performance } from 'node:perf_hooks';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { computeHandEvForRecord } from '@/server/evHelpers';
 
 export type ParseImportTimings = {
@@ -19,6 +19,9 @@ const IMPORT_EV_SEED = 1337;
 
 export type ParseImportResult = {
   numHands: number;
+  numImported: number;
+  numDuplicates: number;
+  numInvalid: number;
   timings: ParseImportTimings;
 };
 
@@ -81,6 +84,9 @@ export async function parseImport({
     }
 
     const persistStart = performance.now();
+    let totalImported = 0;
+    let totalDuplicates = 0;
+    let totalInvalid = 0;
     for (const t of tournamentsToPersist) {
       const tournament = await prisma.tournament.upsert({
         where: { userId_gameId: { userId, gameId: t.gameId } },
@@ -109,7 +115,7 @@ export async function parseImport({
         },
       });
 
-      await prisma.hand.deleteMany({ where: { tournamentId: tournament.id } });
+      // Ne supprime plus les mains du tournoi: détecte les doublons par (tournamentId, handNo)
 
       const actionsData: Array<{ handId: string; street: string; seat: number; type: string; sizeCents: number | null; isAllIn?: boolean | null; orderNo: number }>
         = [];
@@ -117,8 +123,29 @@ export async function parseImport({
         = [];
       const enhancedHandsData: Array<Record<string, unknown>> = [];
 
+      // Précharge les handNo existants pour ce tournoi afin d'éviter les requêtes par main
+      const existingHands = await prisma.hand.findMany({ where: { tournamentId: tournament.id }, select: { handNo: true } });
+      const existingHandNos: Set<string> = new Set(existingHands.map(h => (h.handNo ?? '').trim()).filter(s => s.length > 0));
+
+      const computeFallbackHandNo = (handData: typeof t.hands[number]): string => {
+        // Empreinte déterministe basée sur éléments clés de la main
+        const hash = createHash('sha1');
+        hash.update(String(t.gameId || ''));
+        hash.update('|');
+        hash.update(String(handData.playedAt?.toISOString() || ''));
+        hash.update('|');
+        hash.update(String(handData.heroSeat ?? ''));
+        hash.update('|');
+        hash.update(String(handData.board ?? ''));
+        hash.update('|');
+        const actions = (handData.actions ?? []).map(a => `${a.orderNo}:${a.street}:${a.type}:${a.sizeCents ?? ''}:${a.isAllIn ? 1 : 0}`).join(',');
+        hash.update(actions);
+        return `auto_${hash.digest('hex').slice(0, 20)}`;
+      };
+
       for (const handData of t.hands) {
         const handId = randomUUID();
+        const handNo = (handData.handId && handData.handId.trim().length > 0) ? handData.handId.trim() : computeFallbackHandNo(handData);
         const actions = (handData.actions ?? []).map((a) => ({
           orderNo: a.orderNo,
           seat: a.seat ?? null,
@@ -133,6 +160,13 @@ export async function parseImport({
           hole: p.hole ?? null,
           startingStackCents: p.startingStackCents ?? null,
         }));
+        // Déduplication
+        if (existingHandNos.has(handNo)) {
+          totalDuplicates += 1;
+          continue;
+        }
+        existingHandNos.add(handNo);
+
         const ev = computeHandEvForRecord(
           {
             id: handId,
@@ -157,7 +191,7 @@ export async function parseImport({
         enhancedHandsData.push({
           id: handId,
           tournamentId: tournament.id,
-          handNo: handData.handId,
+          handNo,
           heroSeat: handData.heroSeat ?? null,
           sbCents: handData.sbCents ?? null,
           bbCents: handData.bbCents ?? null,
@@ -197,6 +231,7 @@ export async function parseImport({
             isHero: p.isHero ?? false,
           });
         }
+        totalImported += 1;
       }
 
       if (enhancedHandsData.length > 0) {
@@ -221,7 +256,7 @@ export async function parseImport({
     const numHands = tournamentsToPersist.reduce((acc, t) => acc + t.hands.length, 0);
     await prisma.import.update({
       where: { id: importId },
-      data: { status: 'done', numHands, completedAt: new Date(), error: null },
+      data: { status: 'done', numHands, numImported: totalImported, numDuplicates: totalDuplicates, numInvalid: totalInvalid, completedAt: new Date(), error: null },
     });
 
     const totalMs = performance.now() - totalStart;
@@ -239,7 +274,7 @@ export async function parseImport({
       numHands,
       ...timings,
     });
-    return { numHands, timings };
+    return { numHands, numImported: totalImported, numDuplicates: totalDuplicates, numInvalid: totalInvalid, timings };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[parseImport] failed', err);
