@@ -45,7 +45,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Vérification côté serveur auprès de Memberstack
-    const ms = (await fetchMemberstackMember(memberId)) as MemberstackMemberResponse;
+    let ms: MemberstackMemberResponse | null = null;
+    try {
+      ms = (await fetchMemberstackMember(memberId)) as MemberstackMemberResponse;
+    } catch (e: unknown) {
+      const msg = String(e instanceof Error ? e.message : e);
+      if (msg.includes('404')) {
+        return NextResponse.json({ error: 'member_not_found' }, { status: 400 });
+      }
+      return NextResponse.json({ error: 'upstream_error' }, { status: 502 });
+    }
     const email: string | null = ms.email ?? ms.data?.email ?? null;
     const name: string | null = ms.fullName ?? ms.name ?? ms.data?.fullName ?? null;
 
