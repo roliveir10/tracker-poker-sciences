@@ -253,3 +253,33 @@ export async function getUserStats(
     chipEvPerGame,
   };
 }
+
+// Résumé ultra‑léger pour la Home: évite tout chargement de mains/actions
+export type UserStatsSummary = {
+  tournaments: number;
+  totalProfitCents: number;
+};
+
+export async function getUserStatsSummary(
+  userId: string,
+  options?: { dateFrom?: Date; dateTo?: Date; buyIns?: number[] },
+): Promise<UserStatsSummary> {
+  const where = {
+    userId,
+    ...(Array.isArray(options?.buyIns) && options?.buyIns.length ? { buyInCents: { in: options!.buyIns! } } : {}),
+    ...(options?.dateFrom || options?.dateTo
+      ? { startedAt: { gte: options?.dateFrom, lte: options?.dateTo } }
+      : {}),
+  } as const;
+
+  const agg = await prisma.tournament.aggregate({
+    where,
+    _count: { id: true },
+    _sum: { profitCents: true },
+  });
+
+  return {
+    tournaments: agg._count.id || 0,
+    totalProfitCents: agg._sum.profitCents || 0,
+  };
+}

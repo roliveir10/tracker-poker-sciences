@@ -225,7 +225,8 @@ const innerWidthRef = useRef<number>(0);
     };
   }, [measureStartY, isHoverPinned]);
 
-  const CLIENT_COMPUTE = process.env.NEXT_PUBLIC_EV_CLIENT_COMPUTE !== '0';
+  // Désactivé par défaut; activer en mettant NEXT_PUBLIC_EV_CLIENT_COMPUTE=1
+  const CLIENT_COMPUTE = process.env.NEXT_PUBLIC_EV_CLIENT_COMPUTE === '1';
 
   const normalizeCurve = useCallback((curve: CurvePoint[]): CurvePoint[] => {
     return curve.map((p) => {

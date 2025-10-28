@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { zipSync } from 'fflate';
-import {
-	Button,
-	buttonVariants,
-} from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import {
 	Card,
 	CardContent,
@@ -14,6 +11,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
+import UpgradeBanner from '@/components/UpgradeBanner';
 import {
 	Table,
 	TableBody,
@@ -33,6 +31,9 @@ type ImportRow = {
   createdAt: string;
   completedAt: string | null;
   fileKey: string;
+  originalName?: string | null;
+  contentType?: string | null;
+  size?: number | null;
 };
 
 export default function ImportsPage() {
@@ -44,8 +45,12 @@ const overallIntervalRef = useRef<number | null>(null);
 const [overallProgress, setOverallProgress] = useState<number | null>(null);
 const [importId, setImportId] = useState<string | null>(null);
 const [rows, setRows] = useState<ImportRow[]>([]);
+	const [quotaExceeded, setQuotaExceeded] = useState<boolean>(false);
+	const [quotaDetails, setQuotaDetails] = useState<{ used?: number; limit?: number | null } | null>(null);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const folderInputRef = useRef<HTMLInputElement | null>(null);
+	const queuedSinceRef = useRef<Map<string, number>>(new Map());
+	const fallbackAttemptsRef = useRef<Map<string, number>>(new Map());
 // estimation globale via poids fichier plutôt que lecture du contenu
 	type FolderEntry = { file: File; path: string };
 	type FileEntryLike = {
@@ -76,20 +81,116 @@ const [rows, setRows] = useState<ImportRow[]>([]);
 		return e.isFile === false && e.isDirectory === true && typeof e.name === 'string' && typeof e.createReader === 'function';
 	};
 
-	async function refresh() {
-		const r = await fetch('/api/imports');
-		if (r.ok) setRows(await r.json());
-	}
+	const refresh = useCallback(async (signal?: AbortSignal): Promise<ImportRow[] | null> => {
+		try {
+			const r = await fetch('/api/imports', { cache: 'no-store', signal });
+			if (!r.ok) return null;
+			const data = (await r.json()) as ImportRow[];
+			setRows(data);
+			return data;
+		} catch (err: unknown) {
+			if (err instanceof DOMException && err.name === 'AbortError') return null;
+			console.error('[imports] failed to refresh list', err);
+			return null;
+		}
+	}, []);
+
+	const triggerFallbackParse = useCallback(async (id: string) => {
+		try {
+			setStatus("Relance manuelle du parsing…");
+			const res = await fetch(`/api/imports/${id}/resume`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				cache: 'no-store',
+			});
+			if (!res.ok) {
+				const text = await res.text().catch(() => '');
+				console.warn('[imports] resume parse failed', res.status, text);
+				setStatus("Impossible de relancer automatiquement le parsing.");
+			}
+		} catch (err: unknown) {
+			console.warn('[imports] resume parse error', err);
+		}
+	}, []);
+
+	const startStatusPolling = useCallback((newImportId: string) => {
+		if (statusPollIntervalRef.current) {
+			window.clearInterval(statusPollIntervalRef.current);
+			statusPollIntervalRef.current = null;
+		}
+		setImportId(newImportId);
+		let ticking = false;
+		statusPollIntervalRef.current = window.setInterval(async () => {
+			if (ticking) return;
+			ticking = true;
+			const items = await refresh();
+			const item = items?.find((it) => it.id === newImportId);
+			if (item) {
+				if (item.status === 'processing') setStatus("Import en cours de traitement...");
+				if (item.status === 'queued') {
+					setStatus("Import en file d'attente...");
+					const now = Date.now();
+					const seen = queuedSinceRef.current.get(newImportId);
+					if (!seen) queuedSinceRef.current.set(newImportId, now);
+					const attempts = fallbackAttemptsRef.current.get(newImportId) ?? 0;
+					if (seen && now - seen > 8000 && attempts < 3) {
+						fallbackAttemptsRef.current.set(newImportId, attempts + 1);
+						void triggerFallbackParse(newImportId);
+					}
+				} else {
+					queuedSinceRef.current.delete(newImportId);
+					fallbackAttemptsRef.current.delete(newImportId);
+				}
+				if (item.status === 'done' || item.status === 'failed') {
+					if (overallIntervalRef.current) {
+						window.clearInterval(overallIntervalRef.current);
+						overallIntervalRef.current = null;
+					}
+					if (statusPollIntervalRef.current) {
+						window.clearInterval(statusPollIntervalRef.current);
+						statusPollIntervalRef.current = null;
+					}
+					setOverallProgress(100);
+					setStatus(item.status === 'done' ? "Import terminé" : "Échec de l'import");
+					setImportId(null);
+					setTimeout(() => setOverallProgress(null), 600);
+				}
+			}
+			ticking = false;
+		}, 1500);
+	}, [refresh, triggerFallbackParse]);
 
 	useEffect(() => {
 		void refresh();
-	}, []);
+	}, [refresh]);
 
-useEffect(() => {
-    return () => {
-        if (statusPollIntervalRef.current) window.clearInterval(statusPollIntervalRef.current);
-    };
-}, []);
+	useEffect(() => {
+		const pending = rows.find((row) => row.status === 'queued' || row.status === 'processing');
+		if (!pending) {
+			if (statusPollIntervalRef.current) {
+				window.clearInterval(statusPollIntervalRef.current);
+				statusPollIntervalRef.current = null;
+			}
+			if (importId) setImportId(null);
+			if (importId) {
+				queuedSinceRef.current.delete(importId);
+				fallbackAttemptsRef.current.delete(importId);
+			}
+			return;
+		}
+		if (importId !== pending.id) {
+			startStatusPolling(pending.id);
+		}
+	}, [rows, importId, startStatusPolling]);
+
+	useEffect(() => {
+		return () => {
+			if (statusPollIntervalRef.current) {
+				window.clearInterval(statusPollIntervalRef.current);
+				statusPollIntervalRef.current = null;
+			}
+		};
+	}, []);
 
 	async function uploadBlob(blob: Blob, originalName: string, contentType: string) {
 		const controller = new AbortController();
@@ -101,6 +202,8 @@ useEffect(() => {
 		});
 		if (!res.ok) {
 			setStatus("Impossible d'obtenir l'URL de téléversement");
+			if (overallIntervalRef.current) { window.clearInterval(overallIntervalRef.current); overallIntervalRef.current = null; }
+			setOverallProgress(null);
 			return;
 		}
 	const { url, key } = await res.json();
@@ -113,16 +216,31 @@ useEffect(() => {
 	});
 	if (!putOk.ok) {
 		setStatus("Échec du téléversement");
+		if (overallIntervalRef.current) { window.clearInterval(overallIntervalRef.current); overallIntervalRef.current = null; }
+		setOverallProgress(null);
 		return;
 	}
 		setStatus("Création de l'import...");
 		const create = await fetch('/api/imports', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ fileKey: key, originalName, size: blob.size }),
+			body: JSON.stringify({ fileKey: key, originalName, size: blob.size, contentType }),
 		});
 		if (!create.ok) {
+			try {
+				const j = await create.json();
+				if (create.status === 403 && j?.error === 'limit_reached') {
+					setQuotaExceeded(true);
+					setQuotaDetails({ used: j?.used, limit: j?.limit });
+					setStatus("Quota d'import atteint. Mise à niveau requise.");
+					if (overallIntervalRef.current) { window.clearInterval(overallIntervalRef.current); overallIntervalRef.current = null; }
+					setOverallProgress(null);
+					return;
+				}
+			} catch {}
 			setStatus("Impossible de créer l'import");
+			if (overallIntervalRef.current) { window.clearInterval(overallIntervalRef.current); overallIntervalRef.current = null; }
+			setOverallProgress(null);
 			return;
 		}
 		const data = await create.json();
@@ -143,36 +261,16 @@ useEffect(() => {
 
 	function beginOverallProgress() {
 		if (overallIntervalRef.current) window.clearInterval(overallIntervalRef.current);
-		overallStartAtRef.current = Date.now();
-		setOverallProgress(1);
-		const est = overallEstimateMsRef.current ?? 10000;
-		overallIntervalRef.current = window.setInterval(() => {
-			const start = overallStartAtRef.current ?? Date.now();
+			overallStartAtRef.current = Date.now();
+			setOverallProgress(1);
+			const est = overallEstimateMsRef.current ?? 10000;
+			overallIntervalRef.current = window.setInterval(() => {
+				const start = overallStartAtRef.current ?? Date.now();
 			const elapsed = Date.now() - start;
 			const target = Math.min(90, (elapsed / est) * 100);
 			setOverallProgress((prev) => Math.min(90, Math.max(prev ?? 1, target)));
 		}, 200);
 	}
-
-	function startStatusPolling(newImportId: string) {
-		if (statusPollIntervalRef.current) window.clearInterval(statusPollIntervalRef.current);
-		statusPollIntervalRef.current = window.setInterval(async () => {
-			const r = await fetch('/api/imports');
-			if (!r.ok) return;
-			const items: ImportRow[] = await r.json();
-			const item = items.find((it) => it.id === newImportId);
-			if (!item) return;
-			if (item.status === 'done' || item.status === 'failed') {
-				if (overallIntervalRef.current) window.clearInterval(overallIntervalRef.current);
-				if (statusPollIntervalRef.current) window.clearInterval(statusPollIntervalRef.current);
-				setOverallProgress(100);
-				setStatus(item.status === 'done' ? "Import terminé" : "Échec de l'import");
-				await refresh();
-				setTimeout(() => setOverallProgress(null), 600);
-			}
-		}, 1500);
-	}
-
 
 	async function buildFolderZipFromEntries(entries: FolderEntry[]) : Promise<{ blob: Blob; name: string; numFiles: number; size: number; kind: 'folder' | 'zip' } | null> {
 		const zipCandidates = entries.filter((entry) => entry.path.toLowerCase().endsWith('.zip'));
@@ -288,27 +386,30 @@ useEffect(() => {
 		event.preventDefault();
 	}
 
-	async function handleDeleteImport(id: string) {
-		const confirmDelete = window.confirm("Supprimer cet import ?");
-		if (!confirmDelete) return;
-		setStatus("Suppression de l'import...");
-		const res = await fetch(`/api/imports/${id}`, { method: 'DELETE' });
-		if (!res.ok) {
-			setStatus("Impossible de supprimer l'import");
-			return;
-		}
-		setStatus("Import supprimé");
-		await refresh();
-	}
-
 	return (
 		<main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-10">
+			<UpgradeBanner />
 			<div className="space-y-2">
 				<h1 className="text-3xl font-semibold tracking-tight text-foreground">Imports</h1>
-				<p className="text-sm text-muted-foreground">
-					Importez vos historiques Betclic en quelques secondes. Le traitement démarre automatiquement.
-				</p>
 			</div>
+
+			{quotaExceeded && (
+				<div className="rounded-md border border-border/70 bg-destructive/10 px-4 py-3 text-sm">
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+							<div>
+								<div className="font-medium text-destructive">{"Quota d'import atteint"}</div>
+							<div className="text-destructive/80">
+								{typeof quotaDetails?.used === 'number' && quotaDetails?.limit != null
+									? `${quotaDetails.used} / ${quotaDetails.limit} mains cumulées sur 30 jours`
+									: `Votre limite mensuelle est atteinte.`}
+							</div>
+						</div>
+						<div className="flex gap-2">
+							<Link href="/pricing" className={buttonVariants({ variant: 'default' })}>Voir les abonnements</Link>
+						</div>
+					</div>
+				</div>
+			)}
 
 			<Card>
 				<CardHeader className="space-y-1">
@@ -376,24 +477,18 @@ useEffect(() => {
 					</div>
 				</div>
 			)}
-			{importId && (
-				<div className="text-xs text-muted-foreground">
-					Import in progress: <span className="font-mono text-foreground">{importId}</span>
-				</div>
-			)}
-
 			<Card>
 				<CardHeader className="space-y-1">
 					<CardTitle>Historique des imports</CardTitle>
 					<CardDescription>
-						Suivez le statut des imports et supprimez les entrées inutiles.
+						Suivez le statut de vos imports.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
           <Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead className="w-[160px]">ID</TableHead>
+								<TableHead>Fichier</TableHead>
 								<TableHead>Statut</TableHead>
 								<TableHead>Mains</TableHead>
 								<TableHead>Importées</TableHead>
@@ -401,13 +496,12 @@ useEffect(() => {
 								<TableHead>Invalides</TableHead>
 								<TableHead>Créé</TableHead>
 								<TableHead>Terminé</TableHead>
-								<TableHead className="text-right">Actions</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{rows.map((row) => (
 								<TableRow key={row.id}>
-									<TableCell className="font-mono text-xs text-muted-foreground">{row.id}</TableCell>
+									<TableCell>{row.originalName || row.fileKey.split('/').pop() || '—'}</TableCell>
 									<TableCell className="capitalize">{row.status}</TableCell>
                   <TableCell>{row.numHands}</TableCell>
                   <TableCell>{row.numImported ?? '—'}</TableCell>
@@ -415,17 +509,6 @@ useEffect(() => {
                   <TableCell>{row.numInvalid ?? '—'}</TableCell>
 									<TableCell>{new Date(row.createdAt).toLocaleString("fr-FR")}</TableCell>
 									<TableCell>{row.completedAt ? new Date(row.completedAt).toLocaleString("fr-FR") : '—'}</TableCell>
-									<TableCell className="text-right">
-										<Button
-											variant="ghost"
-											size="sm"
-											type="button"
-											className="text-destructive hover:text-destructive"
-											onClick={() => handleDeleteImport(row.id)}
-										>
-											Supprimer
-										</Button>
-									</TableCell>
 								</TableRow>
 							))}
 						</TableBody>

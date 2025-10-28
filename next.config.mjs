@@ -1,4 +1,5 @@
 // Deprecated: use next.config.ts only
-export default {};
+const legacyConfig = {};
 
+export default legacyConfig;
 

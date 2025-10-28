@@ -18,6 +18,14 @@ const emailConfigured = Boolean(process.env.EMAIL_SERVER);
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: 'database' },
+  callbacks: {
+    async session({ session, user }) {
+      if (user?.id) {
+        session.user = { ...session.user, id: user.id };
+      }
+      return session;
+    },
+  },
   providers: [
     // Only enable Email if configured to avoid build-time dependencies
     ...(emailConfigured
@@ -44,7 +52,7 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  pages: { signIn: '/signin' },
+  pages: { signIn: '/' },
   secret: process.env.NEXTAUTH_SECRET,
 };
 

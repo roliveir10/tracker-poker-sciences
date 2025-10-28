@@ -106,6 +106,10 @@ model Import {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   status       ImportStatus @default(queued)
   fileKey      String
+  originalName String?
+  contentType  String?
+  size         Int?
+  fileBlob     Bytes?
   numHands     Int          @default(0)
   numImported  Int          @default(0)
   numDuplicates Int         @default(0)

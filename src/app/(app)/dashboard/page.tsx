@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { EvCurveChart } from '@/components/ev-curve-chart';
-import { BankrollCurveChart } from '@/components/bankroll-curve-chart';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +42,8 @@ type SavedFilters = {
 	phase: 'preflop' | 'postflop' | undefined;
 };
 
+const KPI_PLACEHOLDER = '…';
+
 function safeLocalStorage() {
 	if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
 		return null;
@@ -69,67 +70,196 @@ function writeSavedFilters(key: string, data: unknown) {
 	}
 }
 
+function normalizePeriodInput(value: unknown): SavedFilters['period'] {
+	if (value === null) return null;
+	if (
+		value === 'today' ||
+		value === 'yesterday' ||
+		value === 'this-week' ||
+		value === 'this-month' ||
+		value === 'custom'
+	) {
+		return value;
+	}
+	return 'today';
+}
+
+function normalizeCustomModeInput(value: unknown): SavedFilters['customMode'] {
+	if (
+		value === 'since' ||
+		value === 'before' ||
+		value === 'betweenDates' ||
+		value === 'betweenHours' ||
+		value === 'onDate'
+	) {
+		return value;
+	}
+	return 'since';
+}
+
+function normalizeChartViewInput(value: unknown): SavedFilters['chartView'] {
+	return value === 'bankroll' ? 'bankroll' : 'chips';
+}
+
+function normalizePositionInput(value: unknown): SavedFilters['position'] {
+	if (value === 'hu' || value === '3max') return value;
+	return undefined;
+}
+
+function normalizePhaseInput(value: unknown): SavedFilters['phase'] {
+	if (value === 'preflop' || value === 'postflop') return value;
+	return undefined;
+}
+
+function sanitizeDateInput(value: unknown): string | undefined {
+	if (typeof value !== 'string') return undefined;
+	const trimmed = value.trim();
+	if (!trimmed) return undefined;
+	if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+	const parsed = new Date(trimmed);
+	if (!Number.isNaN(parsed.getTime())) {
+		return parsed.toISOString().slice(0, 10);
+	}
+	return undefined;
+}
+
+function sanitizeTimeInput(value: unknown): string | undefined {
+	if (typeof value !== 'string') return undefined;
+	const trimmed = value.trim();
+	if (!trimmed) return undefined;
+	const parts = trimmed.split(':');
+	if (parts.length < 2) return undefined;
+	const hour = Number.parseInt(parts[0] ?? '', 10);
+	const minute = Number.parseInt(parts[1] ?? '', 10);
+	if (!Number.isFinite(hour) || !Number.isFinite(minute)) return undefined;
+	const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
+	const safeHour = clamp(hour, 0, 23);
+	const safeMinute = clamp(minute, 0, 59);
+	return `${safeHour.toString().padStart(2, '0')}:${safeMinute.toString().padStart(2, '0')}`;
+}
+
+function sanitizeNumberArray(value: unknown): number[] {
+	if (!Array.isArray(value)) return [];
+	const out: number[] = [];
+	for (const entry of value) {
+		const parsed = typeof entry === 'number' ? entry : Number.parseInt(String(entry), 10);
+		if (Number.isFinite(parsed)) out.push(parsed);
+	}
+	return out;
+}
+
+function sanitizeHuRoles(value: unknown): Array<'sb' | 'bb'> {
+	if (!Array.isArray(value)) return [];
+	return value.filter((v): v is 'sb' | 'bb' => v === 'sb' || v === 'bb');
+}
+
+function sanitizeM3Roles(value: unknown): Array<'bu' | 'sb' | 'bb'> {
+	if (!Array.isArray(value)) return [];
+	return value.filter((v): v is 'bu' | 'sb' | 'bb' => v === 'bu' || v === 'sb' || v === 'bb');
+}
+
+function sanitizeEffValue(value: unknown): string | undefined {
+	if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+	if (typeof value === 'string') {
+		const trimmed = value.trim();
+		if (!trimmed) return undefined;
+		const parsed = Number(trimmed);
+		if (Number.isFinite(parsed)) return trimmed;
+	}
+	return undefined;
+}
+
 export default function DashboardPage() {
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const FILTERS_STORAGE_KEY = 'dashboard:filters:v1';
 
-	function readSaved() {
+	function readSaved(): SavedFilters | null {
 		const stored = readSavedFilters(FILTERS_STORAGE_KEY);
 		if (!stored || typeof stored !== 'object') return null;
-		return stored as SavedFilters;
+		const raw = stored as Record<string, unknown>;
+		const buyIns = sanitizeNumberArray(raw.buyIns);
+		const huRoles = sanitizeHuRoles(raw.huRoles);
+		const m3Roles = sanitizeM3Roles(raw.m3Roles);
+		const normalized: SavedFilters = {
+			period: normalizePeriodInput(raw.period),
+			dateFrom: sanitizeDateInput(raw.dateFrom),
+			dateTo: sanitizeDateInput(raw.dateTo),
+			timeFrom: sanitizeTimeInput(raw.timeFrom),
+			timeTo: sanitizeTimeInput(raw.timeTo),
+			customMode: normalizeCustomModeInput(raw.customMode),
+			chartView: normalizeChartViewInput(raw.chartView),
+			moreOpen: raw.moreOpen === true,
+			buyIns,
+			huRoles,
+			m3Roles,
+			position: normalizePositionInput(raw.position),
+			effMin: sanitizeEffValue(raw.effMin),
+			effMax: sanitizeEffValue(raw.effMax),
+			phase: normalizePhaseInput(raw.phase),
+		};
+		return normalized;
 	}
 
-	const saved = readSaved();
-	const [period, setPeriod] = useState<'today' | 'yesterday' | 'this-week' | 'this-month' | 'custom' | null>(() => saved?.period ?? 'today');
-	const [dateFrom, setDateFrom] = useState<string | undefined>(() => saved?.dateFrom ?? undefined);
-	const [dateTo, setDateTo] = useState<string | undefined>(() => saved?.dateTo ?? undefined);
-	const [timeFrom, setTimeFrom] = useState<string | undefined>(() => saved?.timeFrom ?? undefined);
-	const [timeTo, setTimeTo] = useState<string | undefined>(() => saved?.timeTo ?? undefined);
-	const [moreOpen, setMoreOpen] = useState<boolean>(() => saved?.moreOpen ?? false);
-	const [customMode, setCustomMode] = useState<'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate'>(() => (saved?.customMode === 'onDate' ? 'onDate' : (saved?.customMode ?? 'since')));
-const [draftDateFrom, setDraftDateFrom] = useState<string>('');
-const [draftDateTo, setDraftDateTo] = useState<string>('');
-const [draftTimeFrom, setDraftTimeFrom] = useState<string>('');
-const [draftTimeTo, setDraftTimeTo] = useState<string>('');
-const [draftCustomMode, setDraftCustomMode] = useState<'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate' | undefined>(undefined);
-	const [chartView, setChartView] = useState<'chips' | 'bankroll'>(() => saved?.chartView ?? 'chips');
-
-	const parseStoredArray = <T,>(value: unknown, guard: (v: unknown) => v is T): T[] => {
-		if (!Array.isArray(value)) return [];
-		return value.filter(guard);
-	};
-
-	const parseStoredNumberArray = (value: unknown): number[] => parseStoredArray<number>(value, (v): v is number => typeof v === 'number' && Number.isFinite(v));
-	const parseStoredHuRoles = (value: unknown): Array<'sb' | 'bb'> => parseStoredArray<'sb' | 'bb'>(value, (v): v is 'sb' | 'bb' => v === 'sb' || v === 'bb');
-	const parseStoredM3Roles = (value: unknown): Array<'bu' | 'sb' | 'bb'> => parseStoredArray<'bu' | 'sb' | 'bb'>(value, (v): v is 'bu' | 'sb' | 'bb' => v === 'bu' || v === 'sb' || v === 'bb');
-
-	const savedBuyIns = parseStoredNumberArray(saved?.buyIns);
-	const savedHuRoles = parseStoredHuRoles(saved?.huRoles);
-	const savedM3Roles = parseStoredM3Roles(saved?.m3Roles);
-
-	const [buyIns, setBuyIns] = useState<number[]>(() => savedBuyIns);
+	const [period, setPeriod] = useState<'today' | 'yesterday' | 'this-week' | 'this-month' | 'custom' | null>('today');
+	const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
+	const [dateTo, setDateTo] = useState<string | undefined>(undefined);
+	const [timeFrom, setTimeFrom] = useState<string | undefined>(undefined);
+	const [timeTo, setTimeTo] = useState<string | undefined>(undefined);
+	const [moreOpen, setMoreOpen] = useState<boolean>(false);
+	const [customMode, setCustomMode] = useState<'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate'>('since');
+	const [draftDateFrom, setDraftDateFrom] = useState<string>('');
+	const [draftDateTo, setDraftDateTo] = useState<string>('');
+	const [draftTimeFrom, setDraftTimeFrom] = useState<string>('');
+	const [draftTimeTo, setDraftTimeTo] = useState<string>('');
+	const [draftCustomMode, setDraftCustomMode] = useState<'since' | 'before' | 'betweenDates' | 'betweenHours' | 'onDate' | undefined>(undefined);
+	const [chartView, setChartView] = useState<'chips' | 'bankroll'>('chips');
+	const [buyIns, setBuyIns] = useState<number[]>([]);
 	const [buyInOptions, setBuyInOptions] = useState<number[]>([]);
 	const [buyInOpen, setBuyInOpen] = useState<boolean>(false);
 	const [draftBuyIns, setDraftBuyIns] = useState<number[]>([]);
 	const [effOpen, setEffOpen] = useState<boolean>(false);
-const [effMin, setEffMin] = useState<string>(() => saved?.effMin ?? '');
-const [effMax, setEffMax] = useState<string>(() => saved?.effMax ?? '');
-const [draftEffMin, setDraftEffMin] = useState<string>('');
-const [draftEffMax, setDraftEffMax] = useState<string>('');
-const [position, setPosition] = useState<'hu' | '3max' | undefined>(() => (saved?.position === 'hu' || saved?.position === '3max') ? saved.position : undefined);
-const [huRoles, setHuRoles] = useState<Array<'sb' | 'bb'>>(() => savedHuRoles);
-const [m3Roles, setM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>(() => savedM3Roles);
-const [posOpen, setPosOpen] = useState<boolean>(false);
-const [draftPosition, setDraftPosition] = useState<'hu' | '3max' | undefined>(undefined);
-const [draftHuRoles, setDraftHuRoles] = useState<Array<'sb' | 'bb'>>([]);
-const [draftM3Roles, setDraftM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>([]);
-const [phase, setPhase] = useState<'preflop' | 'postflop' | undefined>(() => (saved?.phase === 'preflop' || saved?.phase === 'postflop') ? saved.phase : undefined);
-const [othersOpen, setOthersOpen] = useState<boolean>(false);
-const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>(undefined);
+	const [effMin, setEffMin] = useState<string>('');
+	const [effMax, setEffMax] = useState<string>('');
+	const [draftEffMin, setDraftEffMin] = useState<string>('');
+	const [draftEffMax, setDraftEffMax] = useState<string>('');
+	const [position, setPosition] = useState<'hu' | '3max' | undefined>(undefined);
+	const [huRoles, setHuRoles] = useState<Array<'sb' | 'bb'>>([]);
+	const [m3Roles, setM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>([]);
+	const [posOpen, setPosOpen] = useState<boolean>(false);
+	const [draftPosition, setDraftPosition] = useState<'hu' | '3max' | undefined>(undefined);
+	const [draftHuRoles, setDraftHuRoles] = useState<Array<'sb' | 'bb'>>([]);
+	const [draftM3Roles, setDraftM3Roles] = useState<Array<'bu' | 'sb' | 'bb'>>([]);
+	const [phase, setPhase] = useState<'preflop' | 'postflop' | undefined>(undefined);
+	const [othersOpen, setOthersOpen] = useState<boolean>(false);
+	const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>(undefined);
+	const [hydrated, setHydrated] = useState(false);
+
+	useEffect(() => {
+		const saved = readSaved();
+		if (saved) {
+			setPeriod(saved.period ?? 'today');
+			setDateFrom(saved.dateFrom ?? undefined);
+			setDateTo(saved.dateTo ?? undefined);
+			setTimeFrom(saved.timeFrom ?? undefined);
+			setTimeTo(saved.timeTo ?? undefined);
+			setMoreOpen(saved.moreOpen ?? false);
+			setCustomMode(saved.customMode === 'onDate' ? 'onDate' : (saved.customMode ?? 'since'));
+			setChartView(saved.chartView ?? 'chips');
+			setBuyIns(saved.buyIns.length > 0 ? [...saved.buyIns] : []);
+			setPosition(saved.position);
+			setHuRoles(saved.huRoles.length > 0 ? [...saved.huRoles] : []);
+			setM3Roles(saved.m3Roles.length > 0 ? [...saved.m3Roles] : []);
+			setEffMin(saved.effMin ?? '');
+			setEffMax(saved.effMax ?? '');
+			setPhase(saved.phase);
+		}
+		setHydrated(true);
+	}, []);
 
 	// Persist filters whenever they change
 	useEffect(() => {
+		if (!hydrated) return;
 		try {
 			const data = {
 				period,
@@ -152,7 +282,7 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
 		} catch {
 			// ignore
 		}
-	}, [period, dateFrom, dateTo, timeFrom, timeTo, customMode, chartView, moreOpen, buyIns, position, huRoles, m3Roles, effMin, effMax, phase]);
+	}, [hydrated, period, dateFrom, dateTo, timeFrom, timeTo, customMode, chartView, moreOpen, buyIns, position, huRoles, m3Roles, effMin, effMax, phase]);
 
 	// Charger les options de buy-in selon la même plage de dates/heures
 	useEffect(() => {
@@ -201,30 +331,40 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
 	})();
 
 	useEffect(() => {
-    const qs = new URLSearchParams();
-    if (period && period !== 'custom') qs.set('period', period);
-    if (period === 'custom') {
-      if (dateFrom) qs.set('dateFrom', toIsoDateTime(dateFrom, timeFrom));
-      if (dateTo) qs.set('dateTo', toIsoDateTime(dateTo, timeTo));
-      if (timeFrom) qs.set('hoursFrom', timeFrom);
-      if (timeTo) qs.set('hoursTo', timeTo);
-    }
-    if (buyIns.length > 0) for (const b of buyIns) qs.append('buyIns', String(b));
-    if (position) qs.set('position', position);
-    if (huRoles.length > 0) for (const r of huRoles) qs.append('huRole', r);
-    if (m3Roles.length > 0) for (const r of m3Roles) qs.append('m3Role', r);
-    if (effMin) qs.set('effMin', String(Number(effMin)));
-    if (effMax) qs.set('effMax', String(Number(effMax)));
-    if (phase) qs.set('phase', phase);
-    const url = `/api/stats${qs.size ? `?${qs.toString()}` : ''}`;
-    fetch(url)
+		const controller = new AbortController();
+		setError(null);
+		const qs = new URLSearchParams();
+		if (period && period !== 'custom') qs.set('period', period);
+		if (period === 'custom') {
+			if (dateFrom) qs.set('dateFrom', toIsoDateTime(dateFrom, timeFrom));
+			if (dateTo) qs.set('dateTo', toIsoDateTime(dateTo, timeTo));
+			if (timeFrom) qs.set('hoursFrom', timeFrom);
+			if (timeTo) qs.set('hoursTo', timeTo);
+		}
+		if (buyIns.length > 0) for (const b of buyIns) qs.append('buyIns', String(b));
+		if (position) qs.set('position', position);
+		if (huRoles.length > 0) for (const r of huRoles) qs.append('huRole', r);
+		if (m3Roles.length > 0) for (const r of m3Roles) qs.append('m3Role', r);
+		if (effMin) qs.set('effMin', String(Number(effMin)));
+		if (effMax) qs.set('effMax', String(Number(effMax)));
+		if (phase) qs.set('phase', phase);
+		const url = `/api/stats${qs.size ? `?${qs.toString()}` : ''}`;
+		fetch(url, { signal: controller.signal, cache: 'no-store' })
 			.then(async (r) => {
 				if (!r.ok) throw new Error('failed');
 				return r.json();
 			})
-			.then(setStats)
-			.catch(() => setError('Unable to load statistics.'));
-  }, [period, dateFrom, dateTo, timeFrom, timeTo, buyIns, position, huRoles, m3Roles, effMin, effMax, phase]);
+			.then((data: Stats) => {
+				setStats(data);
+				setError(null);
+			})
+			.catch((err: unknown) => {
+				if (err instanceof DOMException && err.name === 'AbortError') return;
+				setStats(null);
+				setError('Unable to load statistics.');
+			});
+		return () => controller.abort();
+	}, [period, dateFrom, dateTo, timeFrom, timeTo, buyIns, position, huRoles, m3Roles, effMin, effMax, phase]);
 
   function toIsoDateTime(d?: string, t?: string) {
     if (!d && !t) return '';
@@ -234,11 +374,21 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
     return `${date}T${time}:00.000Z`;
   }
 
+	const tournamentsValue = typeof stats?.tournaments === 'number' ? stats.tournaments : KPI_PLACEHOLDER;
+	const cevValue = typeof stats?.chipEvPerGame === 'number' ? formatChips(stats.chipEvPerGame) : KPI_PLACEHOLDER;
+	const profitCents = typeof stats?.totalProfitCents === 'number' ? stats.totalProfitCents : null;
+	const profitValue = profitCents !== null ? formatEuros(profitCents) : KPI_PLACEHOLDER;
+	const profitNegative = profitCents !== null && profitCents < 0;
+	const profitPositive = profitCents !== null && profitCents > 0;
+	const roiPct = typeof stats?.roiPct === 'number' ? stats.roiPct : null;
+	const roiValue = roiPct !== null ? `${roiPct.toFixed(1)}%` : KPI_PLACEHOLDER;
+	const roiNegative = roiPct !== null && roiPct < 0;
+	const roiPositive = roiPct !== null && roiPct > 0;
+
 	return (
 		<main className="mx-auto flex h-[calc(100svh-64px)] w-full max-w-5xl flex-col gap-6 px-4 py-8">
 			<div className="space-y-2">
 				<h1 className="text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
-				<p className="text-sm text-muted-foreground">Track your Spin &amp; Go performance, EV and ROI at a glance.</p>
 			</div>
 			{error && (
 				<Card className="border-destructive/40 bg-destructive/10 text-destructive">
@@ -250,24 +400,23 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
 					</CardHeader>
 				</Card>
 			)}
-			{stats && (
-				<section className="flex flex-1 flex-col gap-6 overflow-hidden">
-						<div className="grid flex-shrink-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-							<Kpi label="Tournaments" value={stats.tournaments} />
-							<Kpi label="CEV" value={formatChips(stats.chipEvPerGame)} />
-						<Kpi
-							label="Profit"
-							value={formatEuros(stats.totalProfitCents)}
-							valueClassName={stats.totalProfitCents < 0 ? 'text-red-500' : undefined}
-							valueStyle={stats.totalProfitCents > 0 ? { color: '#22c55e' } : undefined}
-						/>
-						<Kpi
-							label="ROI"
-							value={`${stats.roiPct.toFixed(1)}%`}
-							valueClassName={stats.roiPct < 0 ? 'text-red-500' : undefined}
-							valueStyle={stats.roiPct > 0 ? { color: '#22c55e' } : undefined}
-						/>
-					</div>
+			<section className="flex flex-1 flex-col gap-6 overflow-hidden">
+				<div className="grid flex-shrink-0 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+					<Kpi label="Tournaments" value={tournamentsValue} />
+					<Kpi label="CEV" value={cevValue} />
+					<Kpi
+						label="Profit"
+						value={profitValue}
+						valueClassName={profitNegative ? 'text-red-500' : undefined}
+						valueStyle={profitPositive ? { color: '#22c55e' } : undefined}
+					/>
+					<Kpi
+						label="ROI"
+						value={roiValue}
+						valueClassName={roiNegative ? 'text-red-500' : undefined}
+						valueStyle={roiPositive ? { color: '#22c55e' } : undefined}
+					/>
+				</div>
 					<Card className="flex flex-1 flex-col border-border/80 bg-card/80">
                 <CardHeader className="flex-shrink-0 pb-0">
                         <div className="flex items-center justify-between gap-3">
@@ -663,7 +812,7 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
 						</CardHeader>
                         <CardContent className="flex min-h-0 flex-1 pt-6">
                             {chartView === 'chips' ? (
-                              <EvCurveChart
+                              <DynamicEvCurveChart
                                 period={period && period !== 'custom' ? period : undefined}
                                 dateFrom={period === 'custom' ? (dateFrom ? toIsoDateTime(dateFrom, timeFrom) : undefined) : undefined}
                                 dateTo={period === 'custom' ? (dateTo ? toIsoDateTime(dateTo, timeTo) : undefined) : undefined}
@@ -678,7 +827,7 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
 										phase={phase}
                               />
                             ) : (
-                              <BankrollCurveChart
+                              <DynamicBankrollCurveChart
                                 period={period && period !== 'custom' ? period : undefined}
                                 dateFrom={period === 'custom' ? (dateFrom ? toIsoDateTime(dateFrom, timeFrom) : undefined) : undefined}
                                 dateTo={period === 'custom' ? (dateTo ? toIsoDateTime(dateTo, timeTo) : undefined) : undefined}
@@ -690,7 +839,6 @@ const [draftPhase, setDraftPhase] = useState<'preflop' | 'postflop' | undefined>
                         </CardContent>
 					</Card>
 				</section>
-			)}
 		</main>
 	);
 }
@@ -715,3 +863,27 @@ function formatEuros(cents: number) {
 function formatChips(value: number) {
 	return new Intl.NumberFormat('en-US').format(value);
 }
+
+const DynamicEvCurveChart = dynamic(() => import('@/components/ev-curve-chart').then(m => m.EvCurveChart), {
+    ssr: false,
+    loading: () => (
+        <div className="flex-1 rounded-xl border border-border/70 bg-card shadow-lg shadow-black/40" style={{ minHeight: 320 }}>
+            <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-primary" />
+                <span>Chargement du graphique…</span>
+            </div>
+        </div>
+    ),
+});
+
+const DynamicBankrollCurveChart = dynamic(() => import('@/components/bankroll-curve-chart').then(m => m.BankrollCurveChart), {
+    ssr: false,
+    loading: () => (
+        <div className="flex-1 rounded-xl border border-border/70 bg-card shadow-lg shadow-black/40" style={{ minHeight: 320 }}>
+            <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-primary" />
+                <span>Chargement du graphique…</span>
+            </div>
+        </div>
+    ),
+});

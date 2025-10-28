@@ -1,76 +1,55 @@
-import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
+import Image from "next/image";
+import { auth } from "@/auth";
+import HomeGuestCta from "@/components/HomeGuestCta";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+
+  if (session?.user?.id) {
+    redirect('/dashboard');
+  }
+
+  // Non connecté (server-render, pas de flash)
   return (
-    <main className="mx-auto flex h-[calc(100svh-64px)] w-full max-w-5xl flex-col justify-between gap-10 px-4 py-8 overflow-hidden">
-      <section className="flex flex-1 flex-col justify-center gap-6 text-center md:text-left">
-        <span className="mx-auto inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary md:mx-0">
-          Dark mode inspired by shadcn/ui
-        </span>
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Track your Spin &amp; Go performance with an elegant and readable interface.
+    <main className="mx-auto flex w-full max-w-5xl min-h-[calc(100svh-64px)] flex-col gap-10 px-4 py-8 overflow-hidden">
+      <section className="flex flex-[0.75] flex-col items-center justify-center gap-5 text-center">
+        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl inline-flex items-center gap-3">
+          Poker Sciences Tracker
+          <Image
+            src="/logo_pksciences.svg"
+            alt="Logo Poker Sciences Tracker"
+            width={44}
+            height={44}
+            className="opacity-95"
+            priority
+          />
         </h1>
         <p className="mx-auto max-w-2xl text-base text-muted-foreground md:mx-0">
-          Consolidate your imports, monitor tournaments, and visualize EV curves with a layout designed for late-night sessions.
+          Le tracker pour les Spin &amp; Go.
         </p>
-        <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center md:items-start">
-          <Link
-            href="/dashboard"
-            className={buttonVariants({ size: "default", variant: "default" })}
-          >
-            Go to dashboard
-          </Link>
-          <Link
-            href="/imports"
-            className={buttonVariants({ size: "default", variant: "outline" })}
-          >
-            Manage imports
-          </Link>
-        </div>
       </section>
 
-      <section className="grid gap-4 pb-2 md:grid-cols-3">
-        <Card className="h-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Key indicators</CardTitle>
-            <CardDescription>
-              Clear KPIs to follow your volume and profit.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Monitor ROI, CEV, and completed tournaments at a glance.
-          </CardContent>
-        </Card>
-        <Card className="h-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Streamlined imports</CardTitle>
-            <CardDescription>
-              Drag-and-drop files or folders to process them.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            The upload flow saves time and keeps mistakes at bay.
-          </CardContent>
-        </Card>
-        <Card className="h-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Readable EV curve</CardTitle>
-            <CardDescription>
-              Analyze real vs expected gains over time.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            High-contrast dark visualization, perfect for night sessions.
-          </CardContent>
-        </Card>
+      <HomeGuestCta />
+
+      <div className="flex-1" aria-hidden="true" />
+
+      <section className="mx-auto w-full max-w-4xl">
+        <h2 className="mb-4 text-center text-2xl font-semibold tracking-tight text-foreground">Comment ça marche ?</h2>
+        <ol className="grid gap-4 sm:grid-cols-3">
+          <li className="rounded-lg border border-border/60 bg-card/40 p-5">
+            <div className="mb-1.5 text-base font-medium text-foreground">1. Connectez-vous</div>
+            <div className="text-sm text-muted-foreground">Connectez-vous et accédez au dashboard.</div>
+          </li>
+          <li className="rounded-lg border border-border/60 bg-card/40 p-5">
+            <div className="mb-1.5 text-base font-medium text-foreground">2. Importez vos mains</div>
+            <div className="text-sm text-muted-foreground">Glissez-déposez vos fichiers, nous gérons le reste.</div>
+          </li>
+          <li className="rounded-lg border border-border/60 bg-card/40 p-5">
+            <div className="mb-1.5 text-base font-medium text-foreground">3. Analysez</div>
+            <div className="text-sm text-muted-foreground">Suivez CEV et bankroll avec tous les filtres dont les joueurs de Spin ont besoin.</div>
+          </li>
+        </ol>
       </section>
     </main>
   );

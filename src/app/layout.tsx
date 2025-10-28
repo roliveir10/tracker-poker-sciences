@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { SidebarNav } from "@/components/SidebarNav";
 import AutoSso from "@/components/AutoSso";
+import Image from "next/image";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -13,8 +14,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Poker Sciences",
-  description: "Track Spin & Go hands and tournaments",
+  title: "Poker Sciences Tracker",
+  description: "Le tracker Spin & Go le plus simple. CEV, bankroll, EV.",
 };
 
 export default function RootLayout({
@@ -41,7 +42,15 @@ export default function RootLayout({
                 href="/dashboard"
                 className="mb-8 inline-flex items-center text-lg font-semibold tracking-tight text-foreground"
               >
-                Poker Sciences
+                Poker Sciences Tracker
+                <Image
+                  src="/logo_pksciences.svg"
+                  alt="Logo Poker Sciences Tracker"
+                  width={20}
+                  height={20}
+                  className="ml-2 opacity-95"
+                  priority
+                />
               </Link>
               <SidebarNav />
             </aside>

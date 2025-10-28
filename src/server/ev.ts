@@ -315,7 +315,7 @@ export async function getEvCurve(userId: string, limit?: number, options: EvOpti
   }> = [];
   const TOURNAMENT_MODE_THRESHOLD = 7500;
   const useTournamentMode = hands.length > TOURNAMENT_MODE_THRESHOLD;
-  const tournamentAgg = new Map<string, { earliest: Date | null; deltaActual: number; deltaAdj: number }>();
+  const tournamentAgg = new Map<string, { earliest: Date | null; deltaActual: number; deltaAdj: number; deltaShowdown: number; deltaNoShowdown: number }>();
 
   const quickUpdates: Array<{ id: string; data: Prisma.HandUpdateInput }> = [];
 
@@ -382,9 +382,15 @@ export async function getEvCurve(userId: string, limit?: number, options: EvOpti
 
     if (useTournamentMode && hand.tournamentId) {
       const key = hand.tournamentId;
-      const prev = tournamentAgg.get(key) ?? { earliest: hand.playedAt ?? null, deltaActual: 0, deltaAdj: 0 };
+      const prev = tournamentAgg.get(key) ?? { earliest: hand.playedAt ?? null, deltaActual: 0, deltaAdj: 0, deltaShowdown: 0, deltaNoShowdown: 0 };
       const earliest = prev.earliest && hand.playedAt ? (prev.earliest < hand.playedAt ? prev.earliest : hand.playedAt) : (prev.earliest ?? hand.playedAt ?? null);
-      tournamentAgg.set(key, { earliest, deltaActual: prev.deltaActual + deltaActual, deltaAdj: prev.deltaAdj + deltaAdj });
+      tournamentAgg.set(key, {
+        earliest,
+        deltaActual: prev.deltaActual + deltaActual,
+        deltaAdj: prev.deltaAdj + deltaAdj,
+        deltaShowdown: prev.deltaShowdown + (isShowdown ? deltaActual : 0),
+        deltaNoShowdown: prev.deltaNoShowdown + (!isShowdown ? deltaActual : 0),
+      });
     } else {
       cumActual += deltaActual;
       cumAdj += deltaAdj;
@@ -447,7 +453,7 @@ export async function getEvCurve(userId: string, limit?: number, options: EvOpti
 
   let outPoints = points;
   if (useTournamentMode) {
-    const entries = Array.from(tournamentAgg.entries()).map(([tid, v]) => ({ tournamentId: tid, earliest: v.earliest, deltaActual: v.deltaActual, deltaAdj: v.deltaAdj }));
+    const entries = Array.from(tournamentAgg.entries()).map(([tid, v]) => ({ tournamentId: tid, earliest: v.earliest, deltaActual: v.deltaActual, deltaAdj: v.deltaAdj, deltaShowdown: v.deltaShowdown, deltaNoShowdown: v.deltaNoShowdown }));
     entries.sort((a, b) => {
       const ta = a.earliest ? a.earliest.getTime() : 0;
       const tb = b.earliest ? b.earliest.getTime() : 0;
@@ -455,11 +461,15 @@ export async function getEvCurve(userId: string, limit?: number, options: EvOpti
     });
     let cA = 0;
     let cE = 0;
+    let cSD = 0;
+    let cNSD = 0;
     const agg: typeof points = [];
     for (const e of entries) {
       cA += e.deltaActual;
       cE += e.deltaAdj;
-      agg.push({ handId: e.tournamentId, handNo: null, playedAt: e.earliest ?? null, cumActual: cA, cumAdj: cE });
+      cSD += e.deltaShowdown;
+      cNSD += e.deltaNoShowdown;
+      agg.push({ handId: e.tournamentId, handNo: null, playedAt: e.earliest ?? null, cumActual: cA, cumAdj: cE, cumShowdown: cSD, cumNoShowdown: cNSD });
     }
     outPoints = agg;
   }

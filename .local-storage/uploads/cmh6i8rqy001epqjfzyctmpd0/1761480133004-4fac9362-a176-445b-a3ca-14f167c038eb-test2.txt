@@ -1,0 +1,882 @@
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVNFCCB8PX7MRJC4PMVSVD
+Date & Time: 2025-10-17 10:32:51 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 30/60
+Total Pot: 576
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (594) [BTN]
+Seat 2: malicious (288) [SB Hero]
+Seat 3: camzar (618) [BB]
+*** HOLE CARDS ***
+malicious: [Qd 6c]
+camzar: [Ah 5c]
+*** PRE-FLOP ***
+10:32:51 - malicious: Posts SB 30
+10:32:51 - camzar: Posts BB 60
+10:32:53 - ThisIsMe: Folds
+10:32:57 - malicious: Calls 30
+10:32:59 - camzar: Raises to 618 and is all-in
+10:33:00 - malicious: Calls 228 and is all-in
+*** FLOP *** [3s 5s 9c]
+*** TURN *** [3s 5s 9c Qs]
+*** RIVER *** [3s 5s 9c Qs Ac]
+*** SHOWDOWN ***
+malicious shows [Qd 6c] (Pair) [Qs Qd Ac 9c 6c]
+camzar shows [Ah 5c] (Two Pair) [Ah Ac 5s 5c Qs]
+*** SUMMARY ***
+camzar wins main pot of 576
+malicious finished 3rd
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVN1X7EFREXQCNFFYZNSMP
+Date & Time: 2025-10-17 10:32:37 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 30/60
+Total Pot: 270
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (624) [SB]
+Seat 2: malicious (348) [BB Hero]
+Seat 3: camzar (528) [BTN]
+*** HOLE CARDS ***
+malicious: [4s Td]
+*** PRE-FLOP ***
+10:32:37 - ThisIsMe: Posts SB 30
+10:32:37 - malicious: Posts BB 60
+10:32:40 - camzar: Raises to 180
+10:32:42 - ThisIsMe: Folds
+10:32:47 - malicious: Folds
+*** SUMMARY ***
+camzar wins main pot of 270
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVM9FJM0DYGWZCH7JF9TD7
+Date & Time: 2025-10-17 10:32:12 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 20/40
+Total Pot: 368
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (440) [BB]
+Seat 2: malicious (348) [BTN Hero]
+Seat 3: camzar (712) [SB]
+*** HOLE CARDS ***
+ThisIsMe: [3d Qc]
+malicious: [7c 5d]
+camzar: [2h Jd]
+*** PRE-FLOP ***
+10:32:12 - camzar: Posts SB 20
+10:32:12 - ThisIsMe: Posts BB 40
+10:32:13 - malicious: Folds
+10:32:14 - camzar: Calls 20
+10:32:15 - ThisIsMe: Checks
+*** FLOP *** [3h Qd 2s]
+10:32:19 - camzar: Bets 40
+10:32:21 - ThisIsMe: Calls 40
+*** TURN *** [3h Qd 2s Kh]
+10:32:24 - camzar: Checks
+10:32:25 - ThisIsMe: Checks
+*** RIVER *** [3h Qd 2s Kh 9c]
+10:32:28 - camzar: Checks
+10:32:29 - ThisIsMe: Bets 104
+10:32:31 - camzar: Calls 104
+*** SHOWDOWN ***
+camzar shows [2h Jd] (Pair) [2s 2h Kh Qd Jd]
+ThisIsMe shows [3d Qc] (Two Pair) [Qd Qc 3h 3d Kh]
+*** SUMMARY ***
+ThisIsMe wins main pot of 368
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVKWRAMPJ731CXJK0C44G9
+Date & Time: 2025-10-17 10:31:59 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 20/40
+Total Pot: 320
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (440) [BTN]
+Seat 2: malicious (428) [SB Hero]
+Seat 3: camzar (632) [BB]
+*** HOLE CARDS ***
+malicious: [3c Kd]
+*** PRE-FLOP ***
+10:31:59 - malicious: Posts SB 20
+10:31:59 - camzar: Posts BB 40
+10:32:01 - ThisIsMe: Folds
+10:32:03 - malicious: Raises to 80
+10:32:05 - camzar: Raises to 240
+10:32:09 - malicious: Folds
+*** SUMMARY ***
+camzar wins main pot of 320
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVKECF4JN6WP5T68C435ET
+Date & Time: 2025-10-17 10:31:44 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 20/40
+Total Pot: 140
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (480) [SB]
+Seat 2: malicious (388) [BB Hero]
+Seat 3: camzar (632) [BTN]
+*** HOLE CARDS ***
+malicious: [Ac Td]
+*** PRE-FLOP ***
+10:31:44 - ThisIsMe: Posts SB 20
+10:31:44 - malicious: Posts BB 40
+10:31:47 - camzar: Folds
+10:31:48 - ThisIsMe: Calls 20
+10:31:54 - malicious: Raises to 100
+10:31:56 - ThisIsMe: Folds
+*** SUMMARY ***
+malicious wins main pot of 140
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVK0MW6NTVCZQ5B8H17SBR
+Date & Time: 2025-10-17 10:31:30 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 20/40
+Total Pot: 120
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (520) [BB]
+Seat 2: malicious (388) [BTN Hero]
+Seat 3: camzar (592) [SB]
+*** HOLE CARDS ***
+malicious: [Js 5h]
+*** PRE-FLOP ***
+10:31:30 - camzar: Posts SB 20
+10:31:30 - ThisIsMe: Posts BB 40
+10:31:32 - malicious: Folds
+10:31:33 - camzar: Calls 20
+10:31:37 - ThisIsMe: Checks
+*** FLOP *** [6h Th Kc]
+10:31:40 - camzar: Bets 40
+10:31:41 - ThisIsMe: Folds
+*** SUMMARY ***
+camzar wins main pot of 120
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVJM85RD1DVN0M7C0WPZ4H
+Date & Time: 2025-10-17 10:31:18 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 20/40
+Total Pot: 60
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (520) [BTN]
+Seat 2: malicious (408) [SB Hero]
+Seat 3: camzar (572) [BB]
+*** HOLE CARDS ***
+malicious: [3h Jc]
+*** PRE-FLOP ***
+10:31:18 - malicious: Posts SB 20
+10:31:18 - camzar: Posts BB 40
+10:31:24 - ThisIsMe: Folds
+10:31:27 - malicious: Folds
+*** SUMMARY ***
+camzar wins main pot of 60
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVHRKR9GM8MBNH7WRYRVEF
+Date & Time: 2025-10-17 10:30:49 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 20/40
+Total Pot: 408
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (540) [SB]
+Seat 2: malicious (194) [BB Hero]
+Seat 3: camzar (766) [BTN]
+*** HOLE CARDS ***
+malicious: [Tc As]
+camzar: [Kc Kh]
+*** PRE-FLOP ***
+10:30:49 - ThisIsMe: Posts SB 20
+10:30:49 - malicious: Posts BB 40
+10:30:53 - camzar: Raises to 140
+10:30:54 - ThisIsMe: Folds
+10:30:58 - malicious: Calls 100
+*** FLOP *** [Ad 3d 7c]
+10:31:02 - malicious: Checks
+10:31:03 - camzar: Bets 40
+10:31:05 - malicious: Calls 40
+*** TURN *** [Ad 3d 7c Js]
+10:31:08 - malicious: Bets 14 and is all-in
+10:31:09 - camzar: Calls 14
+*** RIVER *** [Ad 3d 7c Js 7s]
+*** SHOWDOWN ***
+malicious shows [Tc As] (Two Pair) [As Ad 7s 7c Js]
+camzar shows [Kc Kh] (Two Pair) [Kh Kc 7s 7c Ad]
+*** SUMMARY ***
+malicious wins main pot of 408
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVH11T5FZW4PQCS661NDD7
+Date & Time: 2025-10-17 10:30:25 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 15/30
+Total Pot: 270
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (420) [BB]
+Seat 2: malicious (194) [BTN Hero]
+Seat 3: camzar (886) [SB]
+*** HOLE CARDS ***
+malicious: [3s Kh]
+*** PRE-FLOP ***
+10:30:25 - camzar: Posts SB 15
+10:30:25 - ThisIsMe: Posts BB 30
+10:30:28 - malicious: Folds
+10:30:30 - camzar: Raises to 60
+10:30:32 - ThisIsMe: Raises to 90
+10:30:33 - camzar: Calls 30
+*** FLOP *** [4c 4h Jd]
+10:30:37 - camzar: Checks
+10:30:38 - ThisIsMe: Bets 30
+10:30:39 - camzar: Calls 30
+*** TURN *** [4c 4h Jd As]
+10:30:42 - camzar: Checks
+10:30:43 - ThisIsMe: Bets 30
+10:30:46 - camzar: Folds
+*** SUMMARY ***
+ThisIsMe wins main pot of 270
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVGFH3ATMFT50NNF3M8CHJ
+Date & Time: 2025-10-17 10:30:07 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 15/30
+Total Pot: 886
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (420) [BTN]
+Seat 2: malicious (637) [SB Hero]
+Seat 3: camzar (443) [BB]
+*** HOLE CARDS ***
+malicious: [Ah Jc]
+camzar: [Kc Th]
+*** PRE-FLOP ***
+10:30:07 - malicious: Posts SB 15
+10:30:07 - camzar: Posts BB 30
+10:30:09 - ThisIsMe: Folds
+10:30:12 - malicious: Raises to 637 and is all-in
+10:30:13 - camzar: Calls 413 and is all-in
+*** FLOP *** [7s Kh 4d]
+*** TURN *** [7s Kh 4d 5d]
+*** RIVER *** [7s Kh 4d 5d 3c]
+*** SHOWDOWN ***
+malicious shows [Ah Jc] (High Card) [Ah Kh Jc 7s 5d]
+camzar shows [Kc Th] (Pair) [Kh Kc Th 7s 5d]
+*** SUMMARY ***
+camzar wins main pot of 886
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVFVT647ZQEZH51H1JGJH4
+Date & Time: 2025-10-17 10:29:47 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 15/30
+Total Pot: 637
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (450) [SB]
+Seat 2: malicious (510) [BB Hero]
+Seat 3: camzar (540) [BTN]
+*** HOLE CARDS ***
+malicious: [Td 9s]
+*** PRE-FLOP ***
+10:29:47 - ThisIsMe: Posts SB 15
+10:29:47 - malicious: Posts BB 30
+10:29:49 - camzar: Calls 30
+10:29:50 - ThisIsMe: Calls 15
+10:29:52 - malicious: Checks
+*** FLOP *** [2d 9c 3s]
+10:29:55 - ThisIsMe: Checks
+10:29:56 - malicious: Bets 67
+10:29:59 - camzar: Calls 67
+10:29:59 - ThisIsMe: Folds
+*** TURN *** [2d 9c 3s Ad]
+10:30:02 - malicious: Bets 413 and is all-in
+10:30:04 - camzar: Folds
+*** SUMMARY ***
+malicious wins main pot of 637
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBS8JK214J2JW86TGH4RF
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVFB08RD004AF6CYMDY6HR
+Date & Time: 2025-10-17 10:29:30 (UTC)
+Table ID: 01K7RVBS8ZHQSVXZDWVF8HDAMJ
+Blinds: 15/30
+Total Pot: 70
+Rake: 0
+*** PLAYERS ***
+Seat 1: elbarroso697 (1040) [SB]
+Seat 2: tisote (450) [BB]
+Seat 3: malicious (10) [BTN Hero]
+*** HOLE CARDS ***
+elbarroso697: [2c 4c]
+tisote: [Jd 8s]
+malicious: [6c 3c]
+*** PRE-FLOP ***
+10:29:30 - elbarroso697: Posts SB 15
+10:29:30 - tisote: Posts BB 30
+10:29:32 - malicious: Calls 10 and is all-in
+10:29:37 - elbarroso697: Calls 15
+10:29:38 - tisote: Checks
+*** FLOP *** [Qh Td 7c]
+10:29:42 - elbarroso697: Checks
+10:29:44 - tisote: Checks
+*** TURN *** [Qh Td 7c 2s]
+10:29:49 - elbarroso697: Checks
+10:29:51 - tisote: Checks
+*** RIVER *** [Qh Td 7c 2s 7d]
+10:29:54 - elbarroso697: Checks
+10:29:55 - tisote: Checks
+*** SHOWDOWN ***
+elbarroso697 shows [2c 4c] (Two Pair) [7d 7c 2s 2c Qh]
+tisote shows [Jd 8s] (Pair) [7d 7c Qh Jd Td]
+malicious shows [6c 3c] (Pair) [7d 7c Qh Td 6c]
+*** SUMMARY ***
+elbarroso697 wins main pot of 30
+elbarroso697 wins 1st side pot of 40
+malicious finished 3rd
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVF1F1BF8ASXV3AHNG863P
+Date & Time: 2025-10-17 10:29:20 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 15/30
+Total Pot: 120
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (420) [BB]
+Seat 2: malicious (510) [BTN Hero]
+Seat 3: camzar (570) [SB]
+*** HOLE CARDS ***
+malicious: [5h Qh]
+*** PRE-FLOP ***
+10:29:20 - camzar: Posts SB 15
+10:29:20 - ThisIsMe: Posts BB 30
+10:29:25 - malicious: Folds
+10:29:26 - camzar: Calls 15
+10:29:28 - ThisIsMe: Checks
+*** FLOP *** [4d Js 5s]
+10:29:31 - camzar: Checks
+10:29:32 - ThisIsMe: Checks
+*** TURN *** [4d Js 5s 3h]
+10:29:34 - camzar: Checks
+10:29:35 - ThisIsMe: Checks
+*** RIVER *** [4d Js 5s 3h 8s]
+10:29:38 - camzar: Checks
+10:29:40 - ThisIsMe: Bets 60
+10:29:44 - camzar: Folds
+*** SUMMARY ***
+ThisIsMe wins main pot of 120
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBS8JK214J2JW86TGH4RF
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVETRK10W4YXZRVHPS0QV0
+Date & Time: 2025-10-17 10:29:13 (UTC)
+Table ID: 01K7RVBS8ZHQSVXZDWVF8HDAMJ
+Blinds: 10/20
+Total Pot: 1040
+Rake: 0
+*** PLAYERS ***
+Seat 1: elbarroso697 (520) [BB]
+Seat 2: tisote (450) [BTN]
+Seat 3: malicious (530) [SB Hero]
+*** HOLE CARDS ***
+elbarroso697: [9s 9d]
+malicious: [Ad 4s]
+*** PRE-FLOP ***
+10:29:13 - malicious: Posts SB 10
+10:29:13 - elbarroso697: Posts BB 20
+10:29:15 - tisote: Folds
+10:29:17 - malicious: Raises to 530 and is all-in
+10:29:18 - elbarroso697: Calls 500 and is all-in
+*** FLOP *** [Ts 2c 8s]
+*** TURN *** [Ts 2c 8s Jh]
+*** RIVER *** [Ts 2c 8s Jh Kc]
+*** SHOWDOWN ***
+malicious shows [Ad 4s] (High Card) [Ad Kc Jh Ts 8s]
+elbarroso697 shows [9s 9d] (Pair) [9s 9d Kc Jh Ts]
+*** SUMMARY ***
+elbarroso697 wins main pot of 1040
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVEM1TRV2EF9VH38QPEXMH
+Date & Time: 2025-10-17 10:29:06 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 10/20
+Total Pot: 200
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (440) [BTN]
+Seat 2: malicious (470) [SB Hero]
+Seat 3: camzar (590) [BB]
+*** HOLE CARDS ***
+malicious: [Ah Qh]
+*** PRE-FLOP ***
+10:29:06 - malicious: Posts SB 10
+10:29:06 - camzar: Posts BB 20
+10:29:08 - ThisIsMe: Calls 20
+10:29:14 - malicious: Raises to 160
+10:29:16 - camzar: Folds
+10:29:17 - ThisIsMe: Folds
+*** SUMMARY ***
+malicious wins main pot of 200
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVE252DQJ3XQYJPTGE1R69
+Date & Time: 2025-10-17 10:28:48 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 10/20
+Total Pot: 297
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (340) [SB]
+Seat 2: malicious (490) [BB Hero]
+Seat 3: camzar (670) [BTN]
+*** HOLE CARDS ***
+malicious: [5c 7d]
+*** PRE-FLOP ***
+10:28:48 - ThisIsMe: Posts SB 10
+10:28:48 - malicious: Posts BB 20
+10:28:50 - camzar: Calls 20
+10:28:50 - ThisIsMe: Raises to 40
+10:28:50 - malicious: Folds
+10:28:51 - camzar: Calls 20
+*** FLOP *** [As 3d 8s]
+10:28:55 - ThisIsMe: Bets 20
+10:28:55 - camzar: Calls 20
+*** TURN *** [As 3d 8s 3s]
+10:28:58 - ThisIsMe: Bets 20
+10:28:59 - camzar: Calls 20
+*** RIVER *** [As 3d 8s 3s 6d]
+10:28:59 - malicious: Sits in
+10:29:02 - ThisIsMe: Bets 117
+10:29:03 - camzar: Folds
+*** SUMMARY ***
+ThisIsMe wins main pot of 297
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBS8JK214J2JW86TGH4RF
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVDTYBHVQV0FF7DGSJ09Q5
+Date & Time: 2025-10-17 10:28:41 (UTC)
+Table ID: 01K7RVBS8ZHQSVXZDWVF8HDAMJ
+Blinds: 10/20
+Total Pot: 120
+Rake: 0
+*** PLAYERS ***
+Seat 1: elbarroso697 (570) [BTN]
+Seat 2: tisote (470) [SB]
+Seat 3: malicious (460) [BB Hero]
+*** HOLE CARDS ***
+elbarroso697: [Qd Jc]
+malicious: [Jh 9c]
+*** PRE-FLOP ***
+10:28:41 - tisote: Posts SB 10
+10:28:41 - malicious: Posts BB 20
+10:28:42 - elbarroso697: Calls 20
+10:28:43 - tisote: Calls 10
+10:28:45 - malicious: Checks
+*** FLOP *** [9s Kc 7h]
+10:28:48 - tisote: Checks
+10:28:49 - malicious: Checks
+10:28:49 - elbarroso697: Checks
+*** TURN *** [9s Kc 7h 4d]
+10:28:54 - tisote: Checks
+10:28:58 - malicious: Checks
+10:28:58 - elbarroso697: Checks
+*** RIVER *** [9s Kc 7h 4d 5c]
+10:29:02 - tisote: Checks
+10:29:04 - malicious: Bets 30
+10:29:05 - elbarroso697: Calls 30
+10:29:07 - tisote: Folds
+*** SHOWDOWN ***
+malicious shows [Jh 9c] (Pair) [9s 9c Kc Jh 7h]
+elbarroso697 shows [Qd Jc] (High Card) [Kc Qd Jc 9s 7h]
+*** SUMMARY ***
+malicious wins main pot of 120
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBS8JK214J2JW86TGH4RF
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVDCN5448CGT4GFKB1YTFM
+Date & Time: 2025-10-17 10:28:26 (UTC)
+Table ID: 01K7RVBS8ZHQSVXZDWVF8HDAMJ
+Blinds: 10/20
+Total Pot: 120
+Rake: 0
+*** PLAYERS ***
+Seat 1: elbarroso697 (510) [SB]
+Seat 2: tisote (490) [BB]
+Seat 3: malicious (500) [BTN Hero]
+*** HOLE CARDS ***
+malicious: [5d Ac]
+*** PRE-FLOP ***
+10:28:26 - elbarroso697: Posts SB 10
+10:28:26 - tisote: Posts BB 20
+10:28:28 - malicious: Raises to 40
+10:28:29 - elbarroso697: Calls 30
+10:28:30 - tisote: Folds
+*** FLOP *** [6s Qh Td]
+10:28:34 - elbarroso697: Bets 20
+10:28:37 - malicious: Folds
+*** SUMMARY ***
+elbarroso697 wins main pot of 120
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVD9V0Q3X8RDMM8YAPGASN
+Date & Time: 2025-10-17 10:28:23 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 10/20
+Total Pot: 200
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (440) [BB]
+Seat 2: malicious (490) [BTN Hero]
+Seat 3: camzar (570) [SB]
+*** HOLE CARDS ***
+ThisIsMe: [3d Kc]
+malicious: [Jc 4h]
+camzar: [6c 6s]
+*** PRE-FLOP ***
+10:28:23 - camzar: Posts SB 10
+10:28:23 - ThisIsMe: Posts BB 20
+10:28:24 - malicious: Folds
+10:28:25 - camzar: Calls 10
+10:28:26 - ThisIsMe: Raises to 40
+10:28:27 - camzar: Calls 20
+*** FLOP *** [3h 8d 2s]
+10:28:30 - camzar: Checks
+10:28:31 - ThisIsMe: Bets 20
+10:28:32 - camzar: Calls 20
+*** TURN *** [3h 8d 2s 9s]
+10:28:34 - camzar: Checks
+10:28:37 - ThisIsMe: Bets 20
+10:28:38 - camzar: Calls 20
+*** RIVER *** [3h 8d 2s 9s 8c]
+10:28:40 - camzar: Checks
+10:28:41 - ThisIsMe: Bets 20
+10:28:42 - camzar: Calls 20
+*** SHOWDOWN ***
+camzar shows [6c 6s] (Two Pair) [8d 8c 6s 6c 9s]
+ThisIsMe shows [3d Kc] (Two Pair) [8d 8c 3h 3d Kc]
+*** SUMMARY ***
+camzar wins main pot of 200
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBS8JK214J2JW86TGH4RF
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVCZ8JJNV4BTS28P67VZGQ
+Date & Time: 2025-10-17 10:28:12 (UTC)
+Table ID: 01K7RVBS8ZHQSVXZDWVF8HDAMJ
+Blinds: 10/20
+Total Pot: 60
+Rake: 0
+*** PLAYERS ***
+Seat 1: elbarroso697 (530) [BB]
+Seat 2: tisote (490) [BTN]
+Seat 3: malicious (480) [SB Hero]
+*** HOLE CARDS ***
+malicious: [3c 5s]
+*** PRE-FLOP ***
+10:28:12 - malicious: Posts SB 10
+10:28:12 - elbarroso697: Posts BB 20
+10:28:14 - tisote: Folds
+10:28:16 - malicious: Calls 10
+10:28:16 - elbarroso697: Checks
+*** FLOP *** [Ah Qd 2s]
+10:28:20 - malicious: Bets 20
+10:28:23 - elbarroso697: Folds
+*** SUMMARY ***
+malicious wins main pot of 60
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBS8JK214J2JW86TGH4RF
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVC63XT8CDAR5Z1192K385
+Date & Time: 2025-10-17 10:27:46 (UTC)
+Table ID: 01K7RVBS8ZHQSVXZDWVF8HDAMJ
+Blinds: 10/20
+Total Pot: 50
+Rake: 0
+*** PLAYERS ***
+Seat 1: elbarroso697 (500) [BTN]
+Seat 2: tisote (500) [SB]
+Seat 3: malicious (500) [BB Hero]
+*** HOLE CARDS ***
+elbarroso697: [Kh 9h]
+malicious: [Th 4c]
+*** PRE-FLOP ***
+10:27:46 - tisote: Posts SB 10
+10:27:46 - malicious: Posts BB 20
+10:27:49 - elbarroso697: Calls 20
+10:27:49 - tisote: Folds
+10:27:53 - malicious: Checks
+*** FLOP *** [3s 8h 2d]
+10:27:56 - malicious: Checks
+10:27:57 - elbarroso697: Checks
+*** TURN *** [3s 8h 2d 3d]
+10:28:00 - malicious: Checks
+10:28:00 - elbarroso697: Checks
+*** RIVER *** [3s 8h 2d 3d 7d]
+10:28:06 - malicious: Checks
+10:28:06 - elbarroso697: Checks
+*** SHOWDOWN ***
+malicious shows [Th 4c] (Pair) [3s 3d Th 8h 7d]
+elbarroso697 shows [Kh 9h] (Pair) [3s 3d Kh 9h 8h]
+*** SUMMARY ***
+elbarroso697 wins main pot of 50
+
+------------
+
+*** HEADER ***
+Site: Betclic.fr
+Game Mode: Spin
+Game Type: NL Texas Hold'em
+Game Name: Spin & Rush 1€
+Game ID: 01K7RVBN75BF3ZEZN0R72MQE0R
+Prize pool: 3.00€
+Multiplier: x3
+Buy In: 1.00€
+Hand ID: 01K7RVC25YQYZ09T9S4G6Q2672
+Date & Time: 2025-10-17 10:27:42 (UTC)
+Table ID: 01K7RVBN7N9TR7X4KF5BJDSJ9S
+Blinds: 10/20
+Total Pot: 130
+Rake: 0
+*** PLAYERS ***
+Seat 1: ThisIsMe (500) [BTN]
+Seat 2: malicious (500) [SB Hero]
+Seat 3: camzar (500) [BB]
+*** HOLE CARDS ***
+ThisIsMe: [9c 2c]
+malicious: [8s 4c]
+camzar: [3d 3s]
+*** PRE-FLOP ***
+10:27:42 - malicious: Posts SB 10
+10:27:42 - camzar: Posts BB 20
+10:27:46 - ThisIsMe: Calls 20
+10:28:01 - malicious: Sits out
+10:28:01 - malicious: Folds
+10:28:02 - camzar: Raises to 40
+10:28:04 - ThisIsMe: Calls 20
+*** FLOP *** [Jc 8d 6h]
+10:28:07 - camzar: Checks
+10:28:09 - ThisIsMe: Checks
+*** TURN *** [Jc 8d 6h 7h]
+10:28:11 - camzar: Checks
+10:28:12 - ThisIsMe: Checks
+*** RIVER *** [Jc 8d 6h 7h 2d]
+10:28:15 - camzar: Checks
+10:28:16 - ThisIsMe: Bets 20
+10:28:17 - camzar: Calls 20
+*** SHOWDOWN ***
+camzar shows [3d 3s] (Pair) [3s 3d Jc 8d 7h]
+ThisIsMe shows [9c 2c] (Pair) [2d 2c Jc 9c 8d]
+*** SUMMARY ***
+camzar wins main pot of 130

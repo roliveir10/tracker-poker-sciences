@@ -6,6 +6,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import { performance } from 'node:perf_hooks';
 import { randomUUID, createHash } from 'node:crypto';
 import { computeHandEvForRecord } from '@/server/evHelpers';
+import { getRemaining } from '@/lib/billing';
 
 export type ParseImportTimings = {
   totalMs: number;
@@ -38,9 +39,33 @@ export async function parseImport({
   await prisma.import.update({ where: { id: importId }, data: { status: 'processing' } });
 
   try {
+    // Détermine le quota restant au début du traitement
+    let remainingQuota: number = Number.POSITIVE_INFINITY;
+    try {
+      const quota = await getRemaining(userId);
+      remainingQuota = Number.isFinite(quota.remaining) ? quota.remaining : Number.POSITIVE_INFINITY;
+    } catch {
+      // si indisponible, traite comme illimité
+      remainingQuota = Number.POSITIVE_INFINITY;
+    }
+
     const totalStart = performance.now();
     const fetchStart = performance.now();
-    const buf = await getObjectAsBuffer(fileKey);
+    let buf: Buffer;
+    try {
+      buf = await getObjectAsBuffer(fileKey);
+    } catch (err) {
+      const stored = await prisma.import.findUnique({
+        where: { id: importId },
+        select: { fileBlob: true },
+      });
+      if (stored?.fileBlob) {
+        buf = Buffer.from(stored.fileBlob);
+        console.info('[parseImport] using file blob fallback for import', importId);
+      } else {
+        throw err;
+      }
+    }
     const fetchMs = performance.now() - fetchStart;
     const isZip = fileKey.toLowerCase().endsWith('.zip') || (buf.length >= 4 && buf.slice(0, 4).toString('binary') === 'PK\x03\x04');
 
@@ -88,6 +113,7 @@ export async function parseImport({
     let totalImported = 0;
     let totalDuplicates = 0;
     const totalInvalid = 0;
+    let shouldStopForQuota = false;
     for (const t of tournamentsToPersist) {
       const tournament = await prisma.tournament.upsert({
         where: { userId_gameId: { userId, gameId: t.gameId } },
@@ -145,6 +171,7 @@ export async function parseImport({
       };
 
       for (const handData of t.hands) {
+        if (remainingQuota <= 0) { shouldStopForQuota = true; break; }
         const handId = randomUUID();
         const handNo = (handData.handId && handData.handId.trim().length > 0) ? handData.handId.trim() : computeFallbackHandNo(handData);
         const actions = (handData.actions ?? []).map((a) => ({
@@ -233,6 +260,7 @@ export async function parseImport({
           });
         }
         totalImported += 1;
+        if (Number.isFinite(remainingQuota)) remainingQuota = Math.max(0, remainingQuota - 1);
       }
 
       if (enhancedHandsData.length > 0) {
@@ -277,6 +305,7 @@ export async function parseImport({
           skipDuplicates: true,
         }),
       );
+      if (shouldStopForQuota) break;
     }
     const persistMs = performance.now() - persistStart;
 
