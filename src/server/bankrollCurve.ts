@@ -68,7 +68,7 @@ export async function getBankrollCurve(userId: string, filters: BankrollCurveFil
         : {}),
     },
     orderBy: { startedAt: 'asc' },
-    select: { id: true, startedAt: true, profitCents: true, prizePoolCents: true, buyInCents: true },
+    select: { id: true, startedAt: true, profitCents: true, prizePoolCents: true, buyInCents: true, rakeCents: true },
   });
 
   let filtered = tournaments;

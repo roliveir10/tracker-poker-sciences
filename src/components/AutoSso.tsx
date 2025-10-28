@@ -1,171 +1,213 @@
 'use client';
 
-import { useEffect } from 'react';
-import { getMemberstackClient, openLoginModal } from '@/lib/msClient';
-// Import dynamique pour éviter toute éval SSR
+import { useEffect, useRef } from 'react';
+import { signIn, signOut, useSession } from 'next-auth/react';
+import { getMemberstackClient, openLoginModal, type MemberstackClient } from '@/lib/msClient';
 
-async function getSessionStatus(): Promise<{ authenticated: boolean }>{
-  try {
-    const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), 3000);
-    const r = await fetch('/api/session', { credentials: 'include', signal: ctl.signal });
-    clearTimeout(t);
-    if (!r.ok) return { authenticated: false };
-    const j = await r.json().catch(() => null);
-    return { authenticated: Boolean(j?.authenticated) };
-  } catch {
-    return { authenticated: false };
+type MemberIdentity = {
+  memberId: string;
+  email?: string | null;
+  name?: string | null;
+};
+
+const DISABLE_COOKIE = 'ms_disable_autosso';
+
+const readString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const unwrapPayload = (payload: unknown): unknown => {
+  if (!payload || typeof payload !== 'object') return payload;
+  const candidate = payload as Record<string, unknown>;
+  if ('member' in candidate && candidate.member && typeof candidate.member === 'object') {
+    return candidate.member;
   }
-}
+  if ('data' in candidate && candidate.data && typeof candidate.data === 'object') {
+    return unwrapPayload(candidate.data);
+  }
+  return payload;
+};
+
+const extractIdentity = (payload: unknown): MemberIdentity | null => {
+  const unwrapped = unwrapPayload(payload);
+  if (!unwrapped || typeof unwrapped !== 'object') return null;
+  const candidate = unwrapped as {
+    id?: unknown;
+    email?: unknown;
+    fullName?: unknown;
+    name?: unknown;
+    auth?: { email?: unknown; fullName?: unknown } | null;
+    data?: { email?: unknown; fullName?: unknown; name?: unknown } | null;
+  };
+
+  const memberId = readString(candidate.id);
+  if (!memberId) return null;
+
+  const email =
+    readString(candidate?.auth?.email) ??
+    readString(candidate.email) ??
+    readString(candidate.data?.email) ??
+    null;
+
+  const name =
+    readString(candidate?.auth?.fullName) ??
+    readString(candidate.fullName) ??
+    readString(candidate.name) ??
+    readString(candidate.data?.fullName) ??
+    readString(candidate.data?.name) ??
+    null;
+
+  return { memberId, email, name };
+};
+
+const hasAutoSsoBlock = (): boolean => {
+  if (typeof document === 'undefined') return false;
+  return document.cookie.split(';').some((chunk) => chunk.trim().startsWith(`${DISABLE_COOKIE}=`));
+};
+
+const clearAutoSsoBlock = () => {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${DISABLE_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
+};
 
 export default function AutoSso() {
+  const { data: session } = useSession();
+  const sessionRef = useRef(session);
+  const lastSyncedMemberIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      // Si un cookie anti-autosso est présent, ne pas tenter de SSO silencieux
-      try {
-        const hasBlock = typeof document !== 'undefined' && document.cookie.split(';').some((c) => c.trim().startsWith('ms_disable_autosso='));
-        if (hasBlock) return;
-      } catch {}
-      const session = await getSessionStatus();
-      if (cancelled || session.authenticated) return;
+    sessionRef.current = session;
+  }, [session]);
 
-      // Anti-boucle: éviter de relancer le SSO immédiatement après succès
-      try {
-        const last = localStorage.getItem('ms_sso_done_at');
-        if (last && Date.now() - parseInt(last, 10) < 2 * 60 * 1000) return;
-      } catch {}
+  useEffect(() => {
+    let active = true;
+    let memberstackClient: MemberstackClient | null = null;
 
-      try {
-        const ms = await getMemberstackClient();
-        if (!ms) return;
+    type SyncTarget = MemberIdentity | null;
+    const syncState = {
+      running: false,
+      pending: undefined as SyncTarget | undefined,
+    };
 
-        // Désactivé: pas de SSO silencieux automatique à l'initialisation
-        // 2) Sinon, écoute l'auth change pour déclencher le SSO après login
-        type MemberstackMember = { id?: string | null; auth?: { email?: string | null; fullName?: string | null } };
-        const unwrapMemberResponse = (payload: unknown): unknown => {
-          if (payload && typeof payload === 'object') {
-            const record = payload as Record<string, unknown>;
-            if ('data' in record && record.data && typeof record.data === 'object') {
-              return record.data;
-            }
-          }
-          return payload;
-        };
-        const extractMember = (payload: unknown): MemberstackMember | null => {
-          if (!payload) return null;
-          if (typeof payload === 'object') {
-            const obj = payload as Record<string, unknown>;
-            if (obj && ('id' in obj || 'auth' in obj)) {
-              return obj as MemberstackMember;
-            }
-            if ('member' in obj && obj.member && typeof obj.member === 'object') {
-              return obj.member as MemberstackMember;
-            }
-            if ('data' in obj && obj.data && typeof obj.data === 'object') {
-              return extractMember(obj.data);
-            }
-          }
-          return null;
-        };
+    const getSessionMemberId = (): string | null => {
+      const currentSession = sessionRef.current;
+      if (!currentSession?.user) return null;
+      const candidate = (currentSession.user as { memberstackId?: string | null }).memberstackId;
+      return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate : null;
+    };
 
-        ms.onAuthChange?.(async (raw: unknown) => {
-          if (cancelled) return;
-          const member = extractMember(unwrapMemberResponse(raw));
-          const memberId = typeof member?.id === 'string' ? member.id : undefined;
-          if (!memberId) return;
-          // Ferme immédiatement le modal pour signaler le progrès de connexion
-          try { await ms.hideModal?.(); } catch {}
-          try {
-            const email = (member?.auth?.email as string | undefined) ?? undefined;
-            const name = (member?.auth?.fullName as string | undefined) ?? undefined;
-            const resp = await fetch('/api/auth/memberstack', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ memberId, email, name }),
-            });
-            if (cancelled) return;
-            if (resp.ok) {
-              try { localStorage.setItem('ms_sso_done_at', String(Date.now())); } catch {}
+    const enqueueSync = (target: SyncTarget) => {
+      if (!active) return;
+      syncState.pending = target ?? null;
+      if (syncState.running) return;
+
+      syncState.running = true;
+      (async () => {
+        while (active) {
+          const current = syncState.pending;
+          syncState.pending = undefined;
+
+          if (!active) break;
+
+          const sessionMemberId = getSessionMemberId();
+
+          if (current && current.memberId) {
+            const alreadyProcessed = lastSyncedMemberIdRef.current === current.memberId;
+            if (alreadyProcessed || sessionMemberId === current.memberId) {
+              lastSyncedMemberIdRef.current = current.memberId;
+            } else {
+              clearAutoSsoBlock();
               try {
-                window.dispatchEvent(new CustomEvent('pksciences:auth-changed', {
-                  detail: { authenticated: true, email: email ?? null },
-                  bubbles: false,
-                }));
-              } catch {}
-              try { sessionStorage.removeItem('ms_active_login_modal'); } catch {}
-              try { await ms.hideModal?.(); } catch {}
-              try { localStorage.removeItem('ms_login_initiated'); } catch {}
-              // Redirection prioritaire après login si une cible a été définie
-              try {
-                const target = localStorage.getItem('ms_post_login_redirect');
-                if (target) {
-                  localStorage.removeItem('ms_post_login_redirect');
-                  window.location.href = target;
-                  return;
+                const result = await signIn('memberstack', {
+                  memberId: current.memberId,
+                  email: current.email ?? undefined,
+                  name: current.name ?? undefined,
+                  redirect: false,
+                });
+                if (result?.error) {
+                  console.error('[AutoSso] Unable to link Memberstack session', result.error);
+                } else {
+                  lastSyncedMemberIdRef.current = current.memberId;
+                  try { await memberstackClient?.hideModal?.(); } catch {}
+                  try { localStorage.setItem('ms_sso_done_at', String(Date.now())); } catch {}
+                  try { sessionStorage.removeItem('ms_login_request_at'); } catch {}
+                  try { localStorage.removeItem('ms_login_initiated'); } catch {}
+                  let redirected = false;
+                  try {
+                    const targetUrl = localStorage.getItem('ms_post_login_redirect');
+                    if (targetUrl) {
+                      localStorage.removeItem('ms_post_login_redirect');
+                      window.location.href = targetUrl;
+                      redirected = true;
+                    }
+                  } catch {}
+                  if (!redirected) {
+                    if (window.location.pathname === '/') window.location.reload();
+                    else window.location.href = '/';
+                  }
                 }
-              } catch {}
-              if (window.location.pathname !== '/') window.location.href = '/';
-              else window.location.reload();
-              return;
+              } catch (err) {
+                console.error('[AutoSso] Memberstack sign-in failed', err);
+              }
             }
-            if (resp.status === 502) {
+          } else {
+            lastSyncedMemberIdRef.current = null;
+            if (sessionMemberId) {
               try {
-                if (ms.logout) {
-                  await ms.logout();
-                }
-              } catch {}
-              try {
-                window.dispatchEvent(new CustomEvent('pksciences:auth-changed', {
-                  detail: { authenticated: false },
-                  bubbles: false,
-                }));
-              } catch {}
-              return;
+                await signOut({ redirect: false });
+              } catch (err) {
+                console.error('[AutoSso] signOut failed', err);
+              }
             }
-            try {
-              const text = await resp.text().catch(() => '');
-              console.error('[AutoSso] auth change sync failed', resp.status, text);
-            } catch {}
-          } catch {
-            // ignore
           }
+
+          if (syncState.pending === undefined) break;
+        }
+      })()
+        .catch((err) => {
+          console.error('[AutoSso] sync loop failed', err);
+        })
+        .finally(() => {
+          syncState.running = false;
         });
-
-        // Si un clic "login" a été initié avant que le SDK soit prêt, ouvrir maintenant
-        try {
-          const ts = sessionStorage.getItem('ms_login_request_at');
-          const requested = ts ? (Date.now() - parseInt(ts, 10) < 30 * 1000) : false;
-          if (requested) await openLoginModal(ms);
-        } catch {}
-        // Aucun overlay additionnel nécessaire
-      } catch {
-        // ignore silent
-      }
     };
-    // Initialise immédiatement pour éviter les courses avec la sidebar
-    run();
-    return () => { cancelled = true; };
-  }, []);
 
-  // Écouteur global: ouvre le modal à la demande si le SDK est prêt
-  useEffect(() => {
-    let disposed = false;
-    const handler = async () => {
-      if (disposed) return;
+    const loginHandler = () => {
       try { localStorage.setItem('ms_login_initiated', '1'); } catch {}
-      await openLoginModal();
+      void openLoginModal();
     };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('pksciences:login-requested', handler as EventListener);
-    }
-    return () => {
-      disposed = true;
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('pksciences:login-requested', handler as EventListener);
+
+    window.addEventListener('pksciences:login-requested', loginHandler as EventListener);
+
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      memberstackClient = await getMemberstackClient();
+      if (!active || !memberstackClient) return;
+
+      try {
+        const currentMember = await memberstackClient.getCurrentMember?.({ useCache: true });
+        const identity = extractIdentity(currentMember);
+        if (identity && !hasAutoSsoBlock()) {
+          enqueueSync(identity);
+        }
+      } catch (err) {
+        console.warn('[AutoSso] failed to resolve current member', err);
       }
+
+      unsubscribe = memberstackClient.onAuthChange?.((payload: unknown) => {
+        enqueueSync(extractIdentity(payload));
+      });
+    })();
+
+    return () => {
+      active = false;
+      window.removeEventListener('pksciences:login-requested', loginHandler as EventListener);
+      unsubscribe?.();
     };
   }, []);
+
   return null;
 }

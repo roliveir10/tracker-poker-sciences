@@ -4,11 +4,13 @@ import EmailProvider from 'next-auth/providers/email';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
+import { fetchMemberstackMember } from '@/lib/memberstack';
 
 declare module 'next-auth' {
   interface Session {
     user: {
       id?: string | null;
+      memberstackId?: string | null;
     } & DefaultSession['user'];
   }
 }
@@ -17,12 +19,40 @@ const emailConfigured = Boolean(process.env.EMAIL_SERVER);
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  session: { strategy: 'database' },
+  session: { strategy: 'jwt' },
   callbacks: {
-    async session({ session, user }) {
-      if (user?.id) {
-        session.user = { ...session.user, id: user.id };
+    async jwt({ token, user }) {
+      type AugmentedToken = typeof token & { userId?: string; memberstackId?: string | null };
+      const augmented = token as AugmentedToken;
+
+      if (user) {
+        augmented.userId = user.id;
+        augmented.memberstackId = (user as { memberstackId?: string | null }).memberstackId ?? augmented.memberstackId ?? null;
+        if (user.email) augmented.email = user.email;
+        if (user.name) augmented.name = user.name;
       }
+
+      if (!augmented.memberstackId && augmented.userId) {
+        const account = await prisma.account.findFirst({
+          where: { userId: augmented.userId, provider: 'memberstack' },
+          select: { providerAccountId: true },
+        });
+        if (account?.providerAccountId) {
+          augmented.memberstackId = account.providerAccountId;
+        }
+      }
+
+      return augmented;
+    },
+    async session({ session, token }) {
+      const augmented = token as { userId?: string; memberstackId?: string | null; email?: string | null; name?: string | null };
+      session.user = {
+        ...session.user,
+        id: augmented.userId ?? null,
+        memberstackId: augmented.memberstackId ?? null,
+        email: session.user?.email ?? augmented.email ?? null,
+        name: session.user?.name ?? augmented.name ?? null,
+      };
       return session;
     },
   },
@@ -36,19 +66,139 @@ export const authOptions: NextAuthOptions = {
       name: 'Memberstack',
       credentials: {
         memberId: { label: 'Member ID', type: 'text' },
+        email: { label: 'Email', type: 'text' },
+        name: { label: 'Name', type: 'text' },
       },
       async authorize(credentials) {
-        const memberId = (credentials as Record<string, string> | undefined)?.memberId?.trim();
+        const input = credentials as Record<string, string | undefined> | undefined;
+        const memberId = input?.memberId?.trim();
         if (!memberId) return null;
-        // L’endpoint SSO crée déjà la session; ce provider n’est utile que si besoin de fallback.
-        // On accepte seulement si un utilisateur a été créé pour ce memberId via Account.link ou via email.
-        // Recherche par Account providerAccountId si existant, sinon par email dev.
-        const account = await prisma.account.findFirst({ where: { provider: 'memberstack', providerAccountId: memberId } });
-        if (account) {
-          const user = await prisma.user.findUnique({ where: { id: account.userId } });
-          return user ? { id: user.id, name: user.name ?? null, email: user.email ?? null } : null;
+
+        const readString = (value: unknown): string | null => {
+          if (typeof value !== 'string') return null;
+          const trimmed = value.trim();
+          return trimmed.length > 0 ? trimmed : null;
+        };
+
+        let email: string | null = null;
+        let name: string | null = null;
+
+        try {
+          const member = await fetchMemberstackMember(memberId);
+          email =
+            readString(member?.email) ??
+            readString((member as { data?: { email?: unknown } | null })?.data?.email) ??
+            null;
+          name =
+            readString((member as { fullName?: unknown }).fullName) ??
+            readString((member as { name?: unknown }).name) ??
+            readString((member as { data?: { fullName?: unknown; name?: unknown } | null })?.data?.fullName) ??
+            readString((member as { data?: { name?: unknown } | null })?.data?.name) ??
+            null;
+        } catch (error) {
+          console.error('[auth] memberstack lookup failed', error);
         }
-        return null;
+
+        email = email ?? readString(input?.email);
+        name = name ?? readString(input?.name);
+
+        if (!email) {
+          return null;
+        }
+
+        const existingAccount = await prisma.account.findUnique({
+          where: { provider_providerAccountId: { provider: 'memberstack', providerAccountId: memberId } },
+          select: { userId: true },
+        });
+
+        let resolvedUser: { id: string; email: string | null; name: string | null } | null = null;
+
+        if (existingAccount) {
+          const currentUser = await prisma.user.findUnique({ where: { id: existingAccount.userId } });
+          if (!currentUser) return null;
+
+          let targetEmail = currentUser.email ?? undefined;
+          if (email && email !== currentUser.email) {
+            const conflict = await prisma.user.findUnique({ where: { email } });
+            if (!conflict || conflict.id === currentUser.id) {
+              targetEmail = email;
+            }
+          }
+
+          const updateData: { email?: string; name?: string | null } = {};
+          if (targetEmail && targetEmail !== currentUser.email) {
+            updateData.email = targetEmail;
+          }
+          if (typeof name === 'string' && name.trim().length > 0) {
+            updateData.name = name;
+          }
+
+          const hasUpdates = Object.keys(updateData).length > 0;
+          const updated = hasUpdates
+            ? await prisma.user.update({
+                where: { id: currentUser.id },
+                data: updateData,
+              })
+            : currentUser;
+          resolvedUser = {
+            id: updated.id,
+            email: updated.email ?? currentUser.email ?? null,
+            name: updated.name ?? currentUser.name ?? null,
+          };
+        } else {
+          const userByEmail = await prisma.user.findUnique({ where: { email } });
+          if (userByEmail) {
+            const updateData: { name?: string | null } = {};
+            if (typeof name === 'string' && name.trim().length > 0) {
+              updateData.name = name;
+            }
+            const updated = Object.keys(updateData).length > 0
+              ? await prisma.user.update({
+                  where: { id: userByEmail.id },
+                  data: updateData,
+                })
+              : userByEmail;
+            resolvedUser = {
+              id: updated.id,
+              email: updated.email ?? userByEmail.email ?? null,
+              name: updated.name ?? userByEmail.name ?? null,
+            };
+          } else {
+            const created = await prisma.user.create({
+              data: { email, name: name ?? undefined },
+            });
+            resolvedUser = {
+              id: created.id,
+              email: created.email,
+              name: created.name ?? null,
+            };
+          }
+        }
+
+        if (!resolvedUser) return null;
+
+        const userId = resolvedUser.id;
+
+        await prisma.account.upsert({
+          where: { provider_providerAccountId: { provider: 'memberstack', providerAccountId: memberId } },
+          update: { userId },
+          create: {
+            userId,
+            type: 'oauth',
+            provider: 'memberstack',
+            providerAccountId: memberId,
+          },
+        });
+
+        const finalEmail = resolvedUser.email ?? email;
+        const finalName = resolvedUser.name ?? name ?? finalEmail ?? null;
+
+        return {
+          id: userId,
+          email: finalEmail,
+          name: finalName,
+          memberstackId: memberId,
+        };
       },
     }),
   ],
@@ -59,5 +209,3 @@ export const authOptions: NextAuthOptions = {
 export function auth() {
   return getServerSession(authOptions);
 }
-
-

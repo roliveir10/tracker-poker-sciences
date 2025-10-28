@@ -341,10 +341,10 @@ export function parseBetclicText(raw: string): ParsedResult {
 	// Finalize profits
 	for (const t of tournaments) {
 		if (t.heroPrizeCents != null) {
-			t.profitCents = t.heroPrizeCents - (t.buyInCents + t.rakeCents);
+			t.profitCents = t.heroPrizeCents - t.buyInCents; // rake ignoré
 		} else if (t.heroResultPosition != null) {
 			const prize = t.heroResultPosition === 1 ? t.prizePoolCents : 0;
-			t.profitCents = prize - (t.buyInCents + t.rakeCents);
+			t.profitCents = prize - t.buyInCents; // rake ignoré
 		}
 	}
 	return { tournaments };

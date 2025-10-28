@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { SidebarNav } from "@/components/SidebarNav";
 import AutoSso from "@/components/AutoSso";
 import Image from "next/image";
+import { AppProviders } from "@/components/AppProviders";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -35,7 +35,7 @@ export default function RootLayout({
         )}
         suppressHydrationWarning
       >
-        <ThemeProvider>
+        <AppProviders>
           <div className="flex min-h-screen bg-background text-foreground">
             <aside className="hidden w-64 flex-col border-r border-border/60 bg-card/80 px-4 py-6 sm:flex">
               <Link
@@ -59,7 +59,7 @@ export default function RootLayout({
               {children}
             </div>
           </div>
-        </ThemeProvider>
+        </AppProviders>
       </body>
     </html>
   );
