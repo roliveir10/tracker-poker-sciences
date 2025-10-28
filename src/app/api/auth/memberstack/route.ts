@@ -97,7 +97,9 @@ export async function POST(req: NextRequest) {
 
 
     // Vérification côté serveur auprès de Memberstack (avec court-circuit en dev)
-  const allowDevEarly = process.env.DEV_FALLBACK === '1' || process.env.NODE_ENV !== 'production';
+  const vercelEnv = (process.env.VERCEL_ENV || '').toLowerCase();
+  const isPreviewEnv = vercelEnv === 'preview' || vercelEnv === 'development';
+  const allowDevEarly = process.env.DEV_FALLBACK === '1' || process.env.NODE_ENV !== 'production' || isPreviewEnv;
   let ms: MemberstackMemberResponse | null = null;
   // Si la clé API n'est pas configurée MAIS que le client fournit un email fiable, court-circuite la vérification upstream
   const noAdminApiKey = !process.env.MEMBERSTACK_API_KEY || process.env.MEMBERSTACK_API_KEY.trim() === '';
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
       // - 5xx: 502
       if (msg.includes('401') || msg.includes('403') || msg.includes('MEMBERSTACK_API_KEY is not set')) {
         // Fallback dev: autorise en environnement de dev ou si DEV_FALLBACK=1
-        const allowDev = process.env.DEV_FALLBACK === '1' || process.env.NODE_ENV !== 'production' || noAdminApiKey;
+        const allowDev = process.env.DEV_FALLBACK === '1' || process.env.NODE_ENV !== 'production' || isPreviewEnv || noAdminApiKey;
         const emailFromClient = body?.email?.trim();
         const nameFromClient = body?.name?.trim();
         if (allowDev) {
