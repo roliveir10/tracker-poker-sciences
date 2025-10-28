@@ -158,6 +158,7 @@ export default function ReviewPage() {
               <Button variant={period === "today" ? "default" : "secondary"} size="sm" type="button" onClick={() => setPeriod("today")}>Today</Button>
               <Button variant={period === "this-week" ? "default" : "secondary"} size="sm" type="button" onClick={() => setPeriod("this-week")}>This week</Button>
               <Button variant={period === "this-month" ? "default" : "secondary"} size="sm" type="button" onClick={() => setPeriod("this-month")}>This month</Button>
+              <Button variant={period === null ? "default" : "secondary"} size="sm" type="button" onClick={() => setPeriod(null)}>All-Time</Button>
             </div>
           </div>
           <div className="flex items-center gap-2">

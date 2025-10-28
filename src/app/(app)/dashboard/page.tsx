@@ -314,6 +314,7 @@ export default function DashboardPage() {
 		if (period === 'yesterday') return 'Yesterday';
 		if (period === 'this-week') return 'This week';
 		if (period === 'this-month') return 'This month';
+		if (period === null) return 'All-Time';
 		if (period === 'custom') {
 			if (customMode === 'since' && dateFrom) return `Since ${dateFrom}`;
 			if (customMode === 'before' && dateTo) return `Before ${dateTo}`;
@@ -476,6 +477,7 @@ export default function DashboardPage() {
                                                          <Button variant={period === 'yesterday' ? 'default' : 'secondary'} size="sm" type="button" onClick={() => { setPeriod('yesterday'); setMoreOpen(false); }}>Yesterday</Button>
                                                          <Button variant={period === 'this-week' ? 'default' : 'secondary'} size="sm" type="button" onClick={() => { setPeriod('this-week'); setMoreOpen(false); }}>This week</Button>
                                                          <Button variant={period === 'this-month' ? 'default' : 'secondary'} size="sm" type="button" onClick={() => { setPeriod('this-month'); setMoreOpen(false); }}>This month</Button>
+                                                         <Button variant={period === null ? 'default' : 'secondary'} size="sm" type="button" onClick={() => { setPeriod(null); setMoreOpen(false); }}>All-Time</Button>
                                                      </div>
                                                      <div className="text-xs font-medium text-muted-foreground">Custom range</div>
                                                      <div className="grid grid-cols-2 gap-2 text-sm">
